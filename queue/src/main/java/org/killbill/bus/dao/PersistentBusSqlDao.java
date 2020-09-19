@@ -35,6 +35,27 @@ import org.skife.jdbi.v2.sqlobject.customizers.Define;
 @KillBillSqlDaoStringTemplate
 public interface PersistentBusSqlDao extends QueueSqlDao<BusEventModelDao> {
 
+    /**
+     * SQL:
+     *     select
+     *       record_id
+     *     from <tableName>
+     *     where
+     *       record_id >= :from
+     *       AND
+     *       processing_state = 'AVAILABLE'
+     * 	  <if(owner)>and creating_owner = '<owner>'<endif>
+     *     order by
+     *       <readyOrderByClause()>
+     *     limit :max
+     *     ;
+     * @param now
+     * @param from
+     * @param max
+     * @param owner
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     List<Long> getReadyEntryIds(@Bind("now") Date now,
                                 @Bind("from") long from,

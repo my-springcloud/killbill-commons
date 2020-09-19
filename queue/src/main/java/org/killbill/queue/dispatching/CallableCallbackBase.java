@@ -32,7 +32,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public abstract class CallableCallbackBase<E extends QueueEvent, M extends EventEntryModelDao> implements CallableCallback<E, M> {
 
     private static final Logger log = LoggerFactory.getLogger(CallableCallbackBase.class);
-
+    /**
+     * 基于数据库的队列
+     */
     private final DBBackedQueue<M> dao;
     private final Clock clock;
     private final PersistentQueueConfig config;
@@ -50,6 +52,14 @@ public abstract class CallableCallbackBase<E extends QueueEvent, M extends Event
         return deserializeEvent(modelDao, objectMapper);
     }
 
+    /**
+     * JSON 反序列化
+     * @param modelDao
+     * @param objectMapper
+     * @param <E>
+     * @param <M>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     public static <E extends QueueEvent, M extends EventEntryModelDao> E deserializeEvent(final M modelDao, final ObjectMapper objectMapper) {
         try {

@@ -168,7 +168,7 @@ public class TestNotificationQueue extends TestSetup {
                         }
                     }
                 });
-
+        /* 先创建5个通知，放到 expectedNotifications 里面，一开始值是false，事件发生后将其改成true */
         final UUID key1 = UUID.randomUUID();
         final NotificationEvent eventJson1 = new TestNotificationKey(key1.toString());
         expectedNotifications.put(eventJson1, Boolean.FALSE);
@@ -197,6 +197,7 @@ public class TestNotificationQueue extends TestSetup {
         final DateTime readyTime = now.plusMillis(2000);
 
         final DBI dbi = getDBI();
+        /* 发送通知 */
         dbi.inTransaction(new TransactionCallback<Object>() {
             @Override
             public Object inTransaction(final Handle conn, final TransactionStatus status) throws Exception {
@@ -205,7 +206,6 @@ public class TestNotificationQueue extends TestSetup {
                 return null;
             }
         });
-
 
         dbi.inTransaction(new TransactionCallback<Object>() {
             @Override
@@ -216,7 +216,6 @@ public class TestNotificationQueue extends TestSetup {
             }
         });
 
-
         dbi.inTransaction(new TransactionCallback<Object>() {
             @Override
             public Object inTransaction(final Handle conn, final TransactionStatus status) throws Exception {
@@ -225,6 +224,7 @@ public class TestNotificationQueue extends TestSetup {
                 return null;
             }
         });
+
         dbi.inTransaction(new TransactionCallback<Object>() {
             @Override
             public Object inTransaction(final Handle conn, final TransactionStatus status) throws Exception {

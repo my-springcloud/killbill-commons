@@ -22,10 +22,21 @@ import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 import org.killbill.queue.api.QueueEvent;
 import org.killbill.queue.dao.EventEntryModelDao;
 
+/**
+ * 可调用的回调类
+ * @param <E>
+ * @param <M>
+ */
 public interface CallableCallback<E extends QueueEvent, M extends EventEntryModelDao> {
 
     E deserialize(final M modelDao);
 
+    /**
+     * 此处是真正的派发逻辑
+     * @param event
+     * @param modelDao
+     * @throws Exception
+     */
     void dispatch(final E event, final M modelDao) throws Exception;
 
     M buildEntry(final M modelDao, final DateTime now, final PersistentQueueEntryLifecycleState newState, final long newErrorCount);

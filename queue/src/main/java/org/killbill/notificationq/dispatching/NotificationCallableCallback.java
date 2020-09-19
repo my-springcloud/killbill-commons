@@ -39,6 +39,12 @@ public class NotificationCallableCallback extends CallableCallbackBase<Notificat
         this.parent = parent;
     }
 
+    /**
+     * 通知派发的真实逻辑
+     * @param event
+     * @param modelDao
+     * @throws NotificationQueueException
+     */
     @Override
     public void dispatch(final NotificationEvent event, final NotificationEventModelDao modelDao) throws NotificationQueueException {
         final NotificationQueueService.NotificationQueueHandler handler = parent.getHandlerForActiveQueue(modelDao.getQueueName());

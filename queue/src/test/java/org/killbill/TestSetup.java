@@ -25,9 +25,7 @@ import java.net.URL;
 import org.killbill.bus.api.PersistentBusConfig;
 import org.killbill.clock.ClockMock;
 import org.killbill.commons.embeddeddb.EmbeddedDB;
-import org.killbill.commons.embeddeddb.h2.H2EmbeddedDB;
-import org.killbill.commons.embeddeddb.mysql.MySQLEmbeddedDB;
-import org.killbill.commons.embeddeddb.postgresql.PostgreSQLEmbeddedDB;
+import org.killbill.commons.embeddeddb.mysql.MySQLStandaloneDB;
 import org.killbill.commons.jdbi.notification.DatabaseTransactionNotificationApi;
 import org.killbill.commons.jdbi.transaction.NotificationTransactionHandler;
 import org.killbill.notificationq.api.NotificationQueueConfig;
@@ -70,31 +68,17 @@ public class TestSetup {
         clock = new ClockMock();
 
         // See also PlatformDBTestingHelper
-        if ("true".equals(System.getProperty(TEST_DB_PROPERTY_PREFIX + "h2"))) {
-            embeddedDB = new H2EmbeddedDB("killbillq", "killbillq", "killbillq");
-        } else if ("true".equals(System.getProperty(TEST_DB_PROPERTY_PREFIX + "postgresql"))) {
-            embeddedDB = new PostgreSQLEmbeddedDB("killbillq", "killbillq");
-        } else {
-            embeddedDB = new MySQLEmbeddedDB("killbillq", "killbillq", "killbillq");
-        }
+//        if ("true".equals(System.getProperty(TEST_DB_PROPERTY_PREFIX + "h2"))) {
+//            embeddedDB = new H2EmbeddedDB("killbillq", "killbillq", "killbillq");
+//        } else if ("true".equals(System.getProperty(TEST_DB_PROPERTY_PREFIX + "postgresql"))) {
+//            embeddedDB = new PostgreSQLEmbeddedDB("killbillq", "killbillq");
+//        } else {
+//            embeddedDB = new MySQLEmbeddedDB("killbillq", "killbillq", "killbillq");
+//        }
+        embeddedDB = new MySQLStandaloneDB("killbillq", "root", "123456");
 
         embeddedDB.initialize();
         embeddedDB.start();
-
-        if (embeddedDB.getDBEngine() == EmbeddedDB.DBEngine.POSTGRESQL) {
-            embeddedDB.executeScript("CREATE DOMAIN datetime AS timestamp without time zone;" +
-                                     "CREATE OR REPLACE FUNCTION last_insert_id() RETURNS BIGINT AS $$\n" +
-                                     "    DECLARE\n" +
-                                     "        result BIGINT;\n" +
-                                     "    BEGIN\n" +
-                                     "        SELECT lastval() INTO result;\n" +
-                                     "        RETURN result;\n" +
-                                     "    EXCEPTION WHEN OTHERS THEN\n" +
-                                     "        SELECT NULL INTO result;\n" +
-                                     "        RETURN result;\n" +
-                                     "    END;\n" +
-                                     "$$ LANGUAGE plpgsql VOLATILE;");
-        }
 
         final String ddl = toString(Resources.getResource("org/killbill/queue/ddl.sql").openStream());
         embeddedDB.executeScript(ddl);

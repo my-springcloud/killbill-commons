@@ -45,7 +45,7 @@ public abstract class DefaultReaper implements Reaper {
     private ScheduledFuture<?> reapEntriesHandle;
 
     private static final Logger log = LoggerFactory.getLogger(DefaultReaper.class);
-
+    // 定时执行器服务
     private ScheduledExecutorService scheduler;
 
     public DefaultReaper(final DBBackedQueue<?> dao, final PersistentQueueConfig config, final Clock clock, final String threadScheduledExecutorName) {

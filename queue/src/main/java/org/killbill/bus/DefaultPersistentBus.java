@@ -77,13 +77,16 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
     private static final Logger log = LoggerFactory.getLogger(DefaultPersistentBus.class);
 
     private final DBI dbi;
+    // 委托给其它实现
     private final EventBusThatThrowsException eventBusDelegate;
+    // 基于数据库的队列
     private final DBBackedQueue<BusEventModelDao> dao;
     private final Clock clock;
     private final PersistentBusConfig config;
     private final Profiling<Iterable<BusEventModelDao>, RuntimeException> prof;
+    // 挖掘
     private final BusReaper reaper;
-
+    // 派发
     private final Dispatcher<BusEvent, BusEventModelDao> dispatcher;
 
     // Time it takes to handle the bus request (going through multiple handles potentially)
@@ -109,6 +112,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         this.clock = clock;
         this.config = config;
         this.dbBackedQId = config.getTableName();
+        // 队列模式
         this.dao = config.getPersistentQueueMode() == PersistentQueueMode.STICKY_EVENTS ?
                    new DBBackedQueueWithInflightQueue<BusEventModelDao>(clock, dbi, PersistentBusSqlDao.class, config, dbBackedQId, metricRegistry, databaseTransactionNotificationApi) :
                    new DBBackedQueueWithPolling<BusEventModelDao>(clock, dbi, PersistentBusSqlDao.class, config, dbBackedQId, metricRegistry);
@@ -173,6 +177,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
 
         if (isStarted.compareAndSet(false, true)) {
             if (config.getPersistentQueueMode() == PersistentQueueMode.STICKY_POLLING || config.getPersistentQueueMode() == PersistentQueueMode.STICKY_EVENTS) {
+                // 启用挖掘机
                 reaper.start();
             }
             super.startQueue();
@@ -204,6 +209,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
 
         long ini = System.nanoTime();
         for (final BusEventModelDao cur : events) {
+            // 派发事件
             dispatcher.dispatch(cur);
         }
         return new DispatchResultMetrics(events.size(), (System.nanoTime() - ini) + eventsWithMetrics.getTime());
@@ -228,6 +234,12 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         return isStarted.get();
     }
 
+    /**
+     * 委托给 eventBusDelegate
+     *
+     * @param handlerInstance handler to register
+     * @throws EventBusException
+     */
     @Override
     public void register(final Object handlerInstance) throws EventBusException {
         if (isInitialized.get()) {
@@ -253,6 +265,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
                 final String json = objectMapper.writeValueAsString(event);
                 final BusEventModelDao entry = new BusEventModelDao(CreatorName.get(), clock.getUTCNow(), event.getClass().getName(), json,
                                                                     event.getUserToken(), event.getSearchKey1(), event.getSearchKey2());
+                // 写数据库，并存到缓存中
                 dao.insertEntry(entry);
 
             } else {
@@ -390,6 +403,11 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         return sb.toString();
     }
 
+    /**
+     * 真正的事件派发逻辑
+     * @param event
+     * @throws com.google.common.eventbus.EventBusException
+     */
     public void dispatchBusEventWithMetrics(final QueueEvent event) throws com.google.common.eventbus.EventBusException {
         final Timer.Context dispatchTimerContext = busHandlersProcessingTime.time();
         try {

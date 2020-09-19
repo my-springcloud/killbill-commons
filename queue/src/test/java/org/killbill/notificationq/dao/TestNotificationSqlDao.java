@@ -65,15 +65,48 @@ public class TestNotificationSqlDao extends TestSetup {
         dao = getDBI().onDemand(NotificationSqlDao.class);
     }
 
+    /**
+     * 读取已经准备好的通知事件
+     * @throws Exception
+     */
     @Test(groups = "slow", description = "Verify SQL bound arguments are properly serialized")
     public void testQueryGeneratesNoWarning() throws Exception {
         final Handle handle = getDBI().open();
         try {
-            final Date date = new DateTime().toDate();
+            final Date date = new DateTime().plusDays(1).toDate();
             handle.inTransaction(new TransactionCallback<Object>() {
                 @Override
                 public Object inTransaction(final Handle conn, final TransactionStatus status) throws Exception {
                     final NotificationSqlDao notificationSqlDao = conn.attach(NotificationSqlDao.class);
+                    // 获取准备好的事件
+                    /*
+                     select
+                     record_id
+                      , class_name
+                      , event_json
+                      , user_token
+                      , created_date
+                      , creating_owner
+                      , processing_owner
+                      , processing_available_date
+                      , processing_state
+                      , error_count
+                      , search_key1
+                      , search_key2
+                      , future_user_token
+                      , effective_date
+                      , queue_name
+                        from notifications
+                        where
+                              effective_date <= '2020-07-28 06:41:41.957'
+                              and processing_state = 'AVAILABLE'
+                          and creating_owner = 'Yop'
+                        order by
+                                  effective_date asc
+                                , created_date asc
+                                , record_id
+                        limit 3
+                     */
                     final List<NotificationEventModelDao> entries = notificationSqlDao.getReadyEntries(date, 3, hostname, notificationQueueConfig.getTableName());
                     assertNull(conn.getConnection().getWarnings());
                     assertEquals(entries.size(), 0);
@@ -85,6 +118,10 @@ public class TestNotificationSqlDao extends TestSetup {
         }
     }
 
+    /**
+     * 保存通知事件模型
+     * @throws InterruptedException
+     */
     @Test(groups = "slow")
     public void testBasic() throws InterruptedException {
         final long searchKey1 = 1242L;
@@ -97,12 +134,14 @@ public class TestNotificationSqlDao extends TestSetup {
         final NotificationEventModelDao notif = new NotificationEventModelDao(hostname, clock.getUTCNow(), eventJson.getClass().getName(),
                 eventJson, UUID.randomUUID(), searchKey1, SEARCH_KEY_2,
                 UUID.randomUUID(), effDt, "testBasic");
-
+        // 插入通知
         dao.insertEntry(notif, notificationQueueConfig.getTableName());
 
         Thread.sleep(1000);
         // ms will be truncated in the database
         final DateTime now = DefaultClock.truncateMs(new DateTime());
+
+        // 查询准备好的通知
         final List<NotificationEventModelDao> notifications = dao.getReadyEntries(now.toDate(), 3, hostname, notificationQueueConfig.getTableName());
         assertNotNull(notifications);
         assertEquals(notifications.size(), 1);
@@ -119,6 +158,7 @@ public class TestNotificationSqlDao extends TestSetup {
 
 
         final DateTime nextAvailable = now.plusMinutes(5);
+        // 更新为 IN_PROCESSING 状态，如果执行失败，5分钟后再重试
         final int res = dao.claimEntry(notification.getRecordId(), ownerId, nextAvailable.toDate(), notificationQueueConfig.getTableName());
         assertEquals(res, 1);
         dao.claimEntry(notification.getRecordId(), ownerId, nextAvailable.toDate(), notificationQueueConfig.getTableName());
@@ -130,6 +170,7 @@ public class TestNotificationSqlDao extends TestSetup {
         assertEquals(notification.getProcessingState(), PersistentQueueEntryLifecycleState.IN_PROCESSING);
         validateDate(notification.getNextAvailableDate(), nextAvailable);
 
+        // 写入历史表
         final DateTime processedTime = clock.getUTCNow();
         NotificationEventModelDao notificationHistory = new NotificationEventModelDao(notification, CreatorName.get(), processedTime, PersistentQueueEntryLifecycleState.PROCESSED);
         dao.insertEntry(notificationHistory, notificationQueueConfig.getHistoryTableName());
@@ -141,6 +182,7 @@ public class TestNotificationSqlDao extends TestSetup {
         assertEquals(notificationHistory.getProcessingState(), PersistentQueueEntryLifecycleState.PROCESSED);
         validateDate(notificationHistory.getNextAvailableDate(), processedTime);
 
+        // 从通知表移除
         dao.removeEntry(notification.getRecordId(), notificationQueueConfig.getTableName());
         notification = dao.getByRecordId(notification.getRecordId(), notificationQueueConfig.getTableName());
         assertNull(notification);
@@ -158,21 +200,21 @@ public class TestNotificationSqlDao extends TestSetup {
                 UUID.randomUUID(), effDt, "testBasic1");
 
         final List<NotificationEventModelDao> entries = new ArrayList<NotificationEventModelDao>();
-
+        // 写入通知表
         notif1 = insertEntry(notif1, notificationQueueConfig.getTableName());
         entries.add(notif1);
 
         NotificationEventModelDao notif2 = new NotificationEventModelDao(hostname, clock.getUTCNow(), eventJson.getClass().getName(),
                 eventJson, UUID.randomUUID(), searchKey1, SEARCH_KEY_2,
                 UUID.randomUUID(), effDt, "testBasic2");
-
+        // 写入通知表
         notif2 = insertEntry(notif2, notificationQueueConfig.getTableName());
         entries.add(notif2);
 
         NotificationEventModelDao notif3 = new NotificationEventModelDao(hostname, clock.getUTCNow(), eventJson.getClass().getName(),
                 eventJson, UUID.randomUUID(), searchKey1, SEARCH_KEY_2,
                 UUID.randomUUID(), effDt, "testBasic3");
-
+        // 写入通知表
         notif3 = insertEntry(notif3, notificationQueueConfig.getTableName());
         entries.add(notif3);
 
@@ -183,13 +225,13 @@ public class TestNotificationSqlDao extends TestSetup {
                 return input.getRecordId();
             }
         });
-
+        // 批量移除通知
         dao.removeEntries(entryIds, notificationQueueConfig.getTableName());
         for (final Long entry : entryIds) {
             final NotificationEventModelDao result = dao.getByRecordId(entry, notificationQueueConfig.getTableName());
             assertNull(result);
         }
-
+        // 批量写入通知历史表
         dao.insertEntries(entries, notificationQueueConfig.getHistoryTableName());
         for (final Long entry : entryIds) {
             final NotificationEventModelDao result = dao.getByRecordId(entry, notificationQueueConfig.getHistoryTableName());

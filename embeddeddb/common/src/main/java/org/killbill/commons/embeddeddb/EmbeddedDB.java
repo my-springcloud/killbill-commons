@@ -18,6 +18,12 @@
 
 package org.killbill.commons.embeddeddb;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sql.DataSource;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.Connection;
@@ -28,23 +34,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import javax.sql.DataSource;
-
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public abstract class EmbeddedDB {
 
     protected static final Logger logger = LoggerFactory.getLogger(EmbeddedDB.class);
 
     public enum DBEngine {
         GENERIC,
-        MYSQL,
-        H2,
-        POSTGRESQL
+        MYSQL
     }
+
     // Not final to allow more flexible implementers
     protected String databaseName;
     protected String username;
@@ -62,7 +60,7 @@ public abstract class EmbeddedDB {
     }
 
     public boolean useConnectionPooling() {
-        return Boolean .getBoolean("killbill.test.use.connection.pool");
+        return Boolean.getBoolean("killbill.test.use.connection.pool");
     }
 
     public abstract DBEngine getDBEngine();
@@ -119,15 +117,9 @@ public abstract class EmbeddedDB {
     // Only used in tests (embedded versions)
     protected DataSource createHikariDataSource() throws IOException {
         final String dataSourceClassName;
-        switch(getDBEngine()) {
+        switch (getDBEngine()) {
             case MYSQL:
                 dataSourceClassName = "org.mariadb.jdbc.MariaDbDataSource";
-                break;
-            case POSTGRESQL:
-                dataSourceClassName = "org.postgresql.ds.PGSimpleDataSource";
-                break;
-            case H2:
-                dataSourceClassName = "org.h2.jdbcx.JdbcDataSource";
                 break;
             default:
                 dataSourceClassName = null;
@@ -239,7 +231,8 @@ public abstract class EmbeddedDB {
 
     protected static class ResultSetJob {
 
-        public void work(final ResultSet resultSet) throws SQLException {}
+        public void work(final ResultSet resultSet) throws SQLException {
+        }
     }
 
     protected int getPort() {

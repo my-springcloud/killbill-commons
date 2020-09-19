@@ -36,6 +36,12 @@ public class BusCallableCallback extends CallableCallbackBase<BusEvent, BusEvent
         this.parent = parent;
     }
 
+    /**
+     * 真正的派发逻辑
+     * @param event
+     * @param modelDao
+     * @throws EventBusException
+     */
     @Override
     public void dispatch(final BusEvent event, final BusEventModelDao modelDao) throws EventBusException {
         parent.dispatchBusEventWithMetrics(event);

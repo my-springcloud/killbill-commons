@@ -26,15 +26,39 @@ import org.killbill.queue.dao.EventEntryModelDao;
 
 public class BusEventModelDao implements EventEntryModelDao {
 
+    /**
+     * 主键
+     */
     private Long recordId;
+    /**
+     * 事件Class全限定类名
+     */
     private String className;
+    /**
+     * 事件Object的json序列化结果
+     */
     private String eventJson;
+    /**
+     * 使用场景：MDC.put(MDC_KB_USER_TOKEN, userToken != null ? userToken.toString() : null);
+     */
     private UUID userToken;
     private DateTime createdDate;
+    /**
+     * 创建主机名称
+     */
     private String creatingOwner;
+    /**
+     * 处理事件的主机名称
+     */
     private String processingOwner;
     private DateTime processingAvailableDate;
+    /**
+     * 处理错误的次数
+     */
     private Long errorCount;
+    /**
+     * 事件处理状态
+     */
     private PersistentQueueEntryLifecycleState processingState;
     private Long searchKey1;
     private Long searchKey2;

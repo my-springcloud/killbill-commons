@@ -96,6 +96,10 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
         }
     }
 
+    /**
+     * 派发逻辑，创建一个包含回调的被派发实体
+     * @param modelDao
+     */
     public void dispatch(final M modelDao) {
         log.debug("Dispatching entry {}", modelDao);
         final CallableQueueHandler<E, M> entry = new CallableQueueHandler<E, M>(modelDao, handlerCallback, parentLifeCycle, clock, maxFailureRetries);
@@ -109,8 +113,10 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
         private static final Logger log = LoggerFactory.getLogger(CallableQueueHandler.class);
 
         private final M entry;
+        // 具有再次调用的回调处理器
         private final CallableCallback<E, M> callback;
         private final DefaultQueueLifecycle parentLifeCycle;
+        // 重试次数
         private final int maxFailureRetries;
         private final Clock clock;
 
@@ -134,6 +140,7 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
                     Throwable lastException = null;
                     long errorCount = entry.getErrorCount();
                     try {
+                        // 重新派发
                         callback.dispatch(event, entry);
                     } catch (final Exception e) {
                         if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
@@ -148,22 +155,23 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
 
                         if (parentLifeCycle != null) {
                             if (lastException == null) {
+                                // 成功
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.PROCESSED, entry.getErrorCount());
                                 parentLifeCycle.dispatchCompletedOrFailedEvents(newEntry);
 
                                 log.debug("Done handling notification {}, key = {}", entry.getRecordId(), entry.getEventJson());
                             } else if (lastException instanceof RetryableInternalException) {
-
+                                // 失败重试
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.FAILED, entry.getErrorCount());
                                 parentLifeCycle.dispatchCompletedOrFailedEvents(newEntry);
                             } else if (errorCount <= maxFailureRetries) {
-
+                                // 重试
                                 log.info("Dispatch error, will attempt a retry ", lastException);
 
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.AVAILABLE, errorCount);
                                 parentLifeCycle.dispatchRetriedEvents(newEntry);
                             } else {
-
+                                // 失败
                                 log.error("Fatal NotificationQ dispatch error, data corruption...", lastException);
 
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.FAILED, entry.getErrorCount());

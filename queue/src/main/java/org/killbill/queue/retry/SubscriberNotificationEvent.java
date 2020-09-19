@@ -24,6 +24,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+/**
+ * 订阅 BusEvent 事件
+ */
 @JsonDeserialize(using = SubscriberNotificationEventDeserializer.class)
 public class SubscriberNotificationEvent implements NotificationEvent {
 

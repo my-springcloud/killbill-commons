@@ -44,14 +44,91 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
     @SqlQuery
     Long getMaxRecordId(@Define("tableName") final String tableName);
 
+    /**
+     * Notification:
+     *    select
+     *                  record_id
+     *                   , class_name
+     *                   , event_json
+     *                   , user_token
+     *                   , created_date
+     *                   , creating_owner
+     *                   , processing_owner
+     *                   , processing_available_date
+     *                   , processing_state
+     *                   , error_count
+     *                   , search_key1
+     *                   , search_key2
+     *                   , future_user_token
+     *                   , effective_date
+     *                   , queue_name
+     *     from notifications
+     *     where
+     *     record_id = 1;
+     *
+     *
+     * @param id
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     T getByRecordId(@Bind("recordId") Long id,
                     @Define("tableName") final String tableName);
 
+    /**
+     *  SQL：
+     *     select
+     *       <allTableFields()>
+     *     from <tableName>
+     *     where
+     *       record_id in (<record_ids>)
+     *     order by
+     *       <readyOrderByClause()>
+     *     ;
+     * @param recordIds
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     List<T> getEntriesFromIds(@BindIn("record_ids") final List<Long> recordIds,
                               @Define("tableName") final String tableName);
 
+    /**
+     * Notification：
+     * select
+     *                  record_id
+     *                   , class_name
+     *                   , event_json
+     *                   , user_token
+     *                   , created_date
+     *                   , creating_owner
+     *                   , processing_owner
+     *                   , processing_available_date
+     *                   , processing_state
+     *                   , error_count
+     *                   , search_key1
+     *                   , search_key2
+     *                   , future_user_token
+     *                   , effective_date
+     *                   , queue_name
+     *     from notifications
+     *     where
+     *           effective_date <= '2020-07-27 07:29:44'
+     *           and processing_state = 'AVAILABLE'
+     *       and creating_owner = 'Yop'
+     *     order by
+     *               effective_date asc
+     *             , created_date asc
+     *             , record_id
+     *     limit 3；
+     *
+     *
+     * @param now
+     * @param max
+     * @param owner
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     List<T> getReadyEntries(@Bind("now") Date now,
                             @Bind("max") int max,
@@ -60,7 +137,20 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
                             @Nullable @Define("owner") String owner,
                             @Define("tableName") final String tableName);
 
-
+    /**
+     * Notification:
+     *      select
+     *       count(*)
+     *     from notifications
+     *     where
+     *           effective_date <= '2020-07-27 07:29:44'
+     *           and processing_state = 'AVAILABLE'
+     *       and creating_owner = 'Yop'
+     * @param now
+     * @param owner
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     long getNbReadyEntries(@Bind("now") Date now,
                             // This is somewhat a hack, should really be a @Bind parameter but we also use it
@@ -71,12 +161,51 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
     @SqlQuery
     List<T> getInProcessingEntries(@Define("tableName") final String tableName);
 
+    /**
+     *  SQL:
+     *     select
+     *       <allTableFields()>
+     *     from <tableName>
+     *     where
+     *   		processing_state != 'PROCESSED'
+     *     and processing_state != 'REMOVED'
+     *     and (processing_owner IS NULL OR processing_available_date <= :now)
+     *     and created_date <= :reapingDate
+     *     order by created_date asc
+     *     limit :max;
+     *
+     * @param max
+     * @param now
+     * @param reapingDate
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     List<T> getEntriesLeftBehind(@Bind("max") int max,
                                  @Bind("now") Date now,
                                  @Bind("reapingDate") Date reapingDate,
                                  @Define("tableName") final String tableName);
 
+    /**
+     * Notification:
+     *     update notifications
+     *     set
+     *       processing_owner = '561b29ee-ba8e-4326-80cc-06dea2371d9e'
+     *       , processing_available_date = '2020-07-27 07:34:44'
+     *       , processing_state = 'IN_PROCESSING'
+     *     where
+     *       record_id = 1
+     *       and processing_state != 'PROCESSED'
+     *       and processing_state != 'REMOVED'
+     *       and processing_owner IS NULL;
+     *
+     *
+     * @param id
+     * @param owner
+     * @param nextAvailable
+     * @param tableName
+     * @return
+     */
     @SqlUpdate
     int claimEntry(@Bind("recordId") Long id,
                    @Bind("owner") String owner,
@@ -95,6 +224,13 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
                       @Bind("errorCount") Long errorCount,
                       @Define("tableName") final String tableName);
 
+    /**
+     * Notification：
+     * delete from notifications where record_id = 1;
+     *
+     * @param id
+     * @param tableName
+     */
     @SqlUpdate
     void removeEntry(@Bind("recordId") Long id,
                      @Define("tableName") final String tableName);
@@ -103,6 +239,75 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
     void removeEntries(@BindIn("record_ids") final Collection<Long> recordIds,
                        @Define("tableName") final String tableName);
 
+    /**
+     * Notification：
+     * insert into notifications (
+     *                    class_name
+     *                    , event_json
+     *                    , user_token
+     *                    , created_date
+     *                    , creating_owner
+     *                    , processing_owner
+     *                    , processing_available_date
+     *                    , processing_state
+     *                    , error_count
+     *                    , search_key1
+     *                    , search_key2
+     *                    , future_user_token
+     *                    , effective_date
+     *                    , queue_name
+     *     ) values (
+     *                    'java.lang.String'
+     *                    , '535df24b-2e23-4d86-bbf4-f78bd8dd39b8'
+     *                    , 'f219a7b0-0aae-4565-9ff2-6787a29602a4'
+     *                    , '2020-07-27 07:28:28'
+     *                    , 'Yop'
+     *                    , null
+     *                    , null
+     *                    , 'AVAILABLE'
+     *                    , 0
+     *                    , 1242
+     *                    , 37
+     *                    , 'f879f359-88a5-424c-9fdb-53c173247333'
+     *                    , '2020-07-27 07:28:28'
+     *                    , 'testBasic'
+     *     )；
+     *     insert into notifications_history (
+     *                    class_name
+     *                    , event_json
+     *                    , user_token
+     *                    , created_date
+     *                    , creating_owner
+     *                    , processing_owner
+     *                    , processing_available_date
+     *                    , processing_state
+     *                    , error_count
+     *                    , search_key1
+     *                    , search_key2
+     *                    , future_user_token
+     *                    , effective_date
+     *                    , queue_name
+     *     ) values (
+     *                    'java.lang.String'
+     *                    , '535df24b-2e23-4d86-bbf4-f78bd8dd39b8'
+     *                    , 'f219a7b0-0aae-4565-9ff2-6787a29602a4'
+     *                    , '2020-07-27 07:28:28'
+     *                    , 'Yop'
+     *                    , 'DESKTOP-76LNS6C'
+     *                    , '2020-07-27 07:32:55'
+     *                    , 'PROCESSED'
+     *                    , 0
+     *                    , 1242
+     *                    , 37
+     *                    , 'f879f359-88a5-424c-9fdb-53c173247333'
+     *                    , '2020-07-27 07:28:28'
+     *                    , 'testBasic'
+     *     );
+     *
+     * @param evt
+     * @param tableName
+     * @return
+     */
     @SqlUpdate
     @GetGeneratedKeys(value = LongMapper.class, columnName = "record_id")
     Long insertEntry(@SmartBindBean T evt,

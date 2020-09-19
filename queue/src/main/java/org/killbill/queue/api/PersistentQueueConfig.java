@@ -24,11 +24,11 @@ public interface PersistentQueueConfig {
 
     // We support 3 different modes to the queue
     enum PersistentQueueMode {
-        // Entries written from a given node (server) will also be dispatched to that same node; the code will poll for new entries
+        // Entries written from a given node (server) will also be dispatched to that same node; the code will poll for new entries 轮询数据库
         STICKY_POLLING,
-        // Entries written from a given node (server) will also be dispatched to that same node; the code will react to database commit/abort events to fetch new entries
+        // Entries written from a given node (server) will also be dispatched to that same node; the code will react to database commit/abort events to fetch new entries 监听数据库的提交和中断事件来获取新的事件
         STICKY_EVENTS,
-        // Entries written from a given node (server) will may be dispatched to any nodes by polling for all available entries
+        // Entries written from a given node (server) will may be dispatched to any nodes by polling for all available entries 派发所有节点数据
         POLLING
     }
 

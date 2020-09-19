@@ -212,6 +212,13 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
         }
     }
 
+    /**
+     * 通知事件派发的真实逻辑
+     * @param handler
+     * @param notification
+     * @param key
+     * @throws NotificationQueueException
+     */
     public void handleNotificationWithMetrics(final NotificationQueueHandler handler, final NotificationEventModelDao notification, final NotificationEvent key) throws NotificationQueueException {
 
         // Create specific metric name because:
@@ -236,6 +243,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
 
         final long beforeProcessing = System.nanoTime();
         try {
+            // 执行通知业务逻辑
             handler.handleReadyNotification(key, notification.getEffectiveDate(), notification.getFutureUserToken(), notification.getSearchKey1(), notification.getSearchKey2());
         } catch (final RuntimeException e) {
             throw new NotificationQueueException(e);
@@ -246,6 +254,11 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
         }
     }
 
+    /**
+     * 获取queue绑定的处理器
+     * @param compositeName
+     * @return
+     */
     public NotificationQueueHandler getHandlerForActiveQueue(final String compositeName) {
         final NotificationQueue queue = queues.get(compositeName);
         if (queue == null || !queue.isStarted()) {

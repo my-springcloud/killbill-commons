@@ -53,7 +53,9 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
     protected final String svcQName;
     protected final ObjectMapper objectMapper;
     protected final PersistentQueueConfig config;
+    // 已完成或错误的实体
     private final LinkedBlockingQueue<EventEntryModelDao> completedOrFailedEvents;
+    // 需要重试的实体
     private final LinkedBlockingQueue<EventEntryModelDao> retriedEvents;
     // Time to dispatch entries to Dispatcher threads
     private final Timer dispatchTime;
@@ -105,6 +107,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         isProcessingEvents = true;
 
         for (int i = 0; i < config.geNbLifecycleDispatchThreads(); i++) {
+            // 死循环执行事件派发
             executor.execute(new DispatcherRunnable());
         }
 
@@ -140,6 +143,10 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         retriedEvents.add(event);
     }
 
+    /**
+     * 将事件派发给处理器
+     * @return
+     */
     public abstract DispatchResultMetrics doDispatchEvents();
 
     public abstract void doProcessCompletedEvents(final Iterable<? extends EventEntryModelDao> completed);
@@ -245,7 +252,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
                                        svcQName,
                                        Thread.currentThread().getName(),
                                        Thread.currentThread().getId());
-
+                // 死循环，一直派发事件
                 while (true) {
 
                     if (!isProcessingEvents) {

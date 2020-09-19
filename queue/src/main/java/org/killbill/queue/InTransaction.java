@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 
+/**
+ * 封装了需要在事务内操作的逻辑
+ */
 public class InTransaction {
 
     private static final Logger logger = LoggerFactory.getLogger(InTransaction.class);

@@ -27,8 +27,6 @@
     <name>Kill Bill library of embedded dbs</name>
     <modules>
         <module>common</module>
-        <module>h2</module>
         <module>mysql</module>
-        <module>postgresql</module>
     </modules>
 </project>

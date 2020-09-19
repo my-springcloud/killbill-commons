@@ -53,12 +53,13 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
 
     private static final Logger log = LoggerFactory.getLogger(DBBackedQueueWithInflightQueue.class);
 
-    // How many recordIds we pull per iteration during init to fill the inflightQ
+    // How many recordIds we pull per iteration during init to fill the inflightQ 每次从数据库获取的记录数量
     private static final int MAX_FETCHED_RECORDS_ID = 1000;
 
     // Drain inflightQ using getMaxInFlightEntries() config at a time and sleep for a maximum of 100 mSec if there is nothing to do
+    // 如果 inflightEvents 中没有event，最多再等待100毫秒
     private static final long INFLIGHT_POLLING_TIMEOUT_MSEC = 100;
-
+    // 队列
     private final LinkedBlockingQueue<Long> inflightEvents;
 
     private final DatabaseTransactionNotificationApi databaseTransactionNotificationApi;
@@ -69,6 +70,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
     //
     private static final AtomicInteger QUEUE_ID_CNT = new AtomicInteger(0);
     private final int queueId;
+    // 缓存队列，在数据写入到数据库的时候，会将id存放到这里，事务提交的时候，将id转移到 inflightEvents
     private final TransientInflightQRowIdCache transientInflightQRowIdCache;
 
     public DBBackedQueueWithInflightQueue(final Clock clock,
@@ -87,6 +89,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         this.inflightEvents = new LinkedBlockingQueue<Long>();
 
         this.databaseTransactionNotificationApi = databaseTransactionNotificationApi;
+        // 事务提交的时候通知
         databaseTransactionNotificationApi.registerForNotification(this);
 
         // Metrics the size of the inflightQ
@@ -125,9 +128,15 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         // The current thread is in the middle of  a transaction and this is the only times it knows about the recordId for the queue event;
         // It keeps track of it as a per thread data. Very soon, when the transaction gets committed/rolled back it can then extract the info
         // and insert the recordId into a blockingQ that is highly optimized to dispatch events.
+        // 先存到缓存中，当事务提交的时候，立即转移到 inflightEvents
         transientInflightQRowIdCache.addRowId(lastInsertId);
     }
 
+    /**
+     * 从inflightEvents 取值 并存到 result中
+     * @param result
+     * @return
+     */
     private long pollEntriesFromInflightQ(final List<Long> result) {
 
         long pollSleepTime = 0;
@@ -151,12 +160,18 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         return pollSleepTime;
     }
 
+    /**
+     *  从 inflightEvents 中获取 获取特定数量的event_id,并从数据库中查询完整信息
+     *
+     * @return
+     */
     @Override
     public ReadyEntriesWithMetrics<T> getReadyEntries() {
 
         final long ini = System.nanoTime();
         long pollSleepTime = 0;
 
+        // 存放 inflightEvents 中的数据
         final List<Long> recordIds = new ArrayList<Long>(config.getMaxInFlightEntries());
         do {
             pollSleepTime += pollEntriesFromInflightQ(recordIds);
@@ -166,7 +181,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         List<T> entries = ImmutableList.<T>of();
         if (!recordIds.isEmpty()) {
             log.debug("{} fetchReadyEntriesFromIds: {}", DB_QUEUE_LOG_ID, recordIds);
-
+            // 通过ID从bus_events中查找数据
             entries = executeQuery(new Query<List<T>, QueueSqlDao<T>>() {
                 @Override
                 public List<T> execute(final QueueSqlDao<T> queueSqlDao) {
@@ -182,6 +197,10 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
 
     }
 
+    /**
+     * 更新错误次数，并重试
+     * @param entry
+     */
     @Override
     public void updateOnError(final T entry) {
         executeTransaction(new Transaction<Void, QueueSqlDao<T>>() {
@@ -205,6 +224,10 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         }
     }
 
+    /**
+     * 将threadlocal 中缓存的event转移到 inflightEvents
+     * @param event
+     */
     @AllowConcurrentEvents
     @Subscribe
     public void handleDatabaseTransactionEvent(final DatabaseTransactionEvent event) {
@@ -224,6 +247,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
             final Iterator<Long> entries = transientInflightQRowIdCache.iterator();
             while (entries.hasNext()) {
                 final Long entry = entries.next();
+                // 将threadlocal 中缓存的event转移到 inflightEvents
                 final boolean result = inflightEvents.offer(entry);
                 if (result) {
                     log.debug("{} Inserting entry {} into inflightQ", DB_QUEUE_LOG_ID, entry);
@@ -298,6 +322,9 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         }
     }
 
+    /**
+     * 从数据库中加载特定数量的数据到内存中
+     */
     private void initializeInflightQueue() {
 
         inflightEvents.clear();
@@ -305,6 +332,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
         int totalEntries = 0;
         long fromRecordId = -1;
         do {
+            // 查找数据库中已经准备好的数据
             final List<Long> existingIds = ((PersistentBusSqlDao) sqlDao).getReadyEntryIds(clock.getUTCNow().toDate(), fromRecordId, MAX_FETCHED_RECORDS_ID, CreatorName.get(), config.getTableName());
             if (existingIds.isEmpty()) {
                 break;

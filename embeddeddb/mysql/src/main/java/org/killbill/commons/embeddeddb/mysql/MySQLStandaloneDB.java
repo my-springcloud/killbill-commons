@@ -43,11 +43,11 @@ public class MySQLStandaloneDB extends GenericStandaloneDB {
     }
 
     public MySQLStandaloneDB(final String databaseName, final String username, final String password) {
-        this(databaseName, username, password, "jdbc:mysql://localhost:3306/" + databaseName + "?createDatabaseIfNotExist=true&allowMultiQueries=true");
+        this(databaseName, username, password, "jdbc:mysql://localhost:3306/" + databaseName + "?createDatabaseIfNotExist=true&allowMultiQueries=true&useSSL=false&allowPublicKeyRetrieval=true");
     }
 
     public MySQLStandaloneDB(final String databaseName, final String username, final String password, final String jdbcConnectionString) {
-        this(databaseName, username, password, jdbcConnectionString, true);
+        this(databaseName, username, password, jdbcConnectionString, false);
     }
 
     public MySQLStandaloneDB(final String databaseName, final String username, final String password, final String jdbcConnectionString, final boolean useMariaDB) {

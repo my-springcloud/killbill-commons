@@ -38,7 +38,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * A factory to create notification queues.
+ * A factory to create notification queues. 一个应用程序通常只有一个实例
  * An application will typically have a single instance and call <code>createNotificationQueue</code>
  * to create one or several queues.
  */

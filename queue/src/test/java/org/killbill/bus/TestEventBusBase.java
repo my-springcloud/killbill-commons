@@ -159,8 +159,9 @@ public class TestEventBusBase {
 
         private final int expectedEvents;
         private final int nbThrowExceptions;
-
+        // 处理成功的事件数量
         private volatile int gotEvents;
+        // 抛出的异常数量
         private volatile int gotExceptions;
 
         public MyEventHandler(final int exp, final int nbThrowExceptions) {
@@ -174,6 +175,7 @@ public class TestEventBusBase {
             return gotEvents;
         }
 
+        // 通过 Subscribe 标注处理事件的方法，参数类型表示订阅的事件
         @AllowConcurrentEvents
         @Subscribe
         public void processMyEvent(final MyEvent event) {
@@ -233,13 +235,17 @@ public class TestEventBusBase {
 
     public void testSimple() {
         try {
+            // 预计处理5个事件
             final int nbEvents = 5;
             final MyEventHandler handler = new MyEventHandler(nbEvents, 0);
+            // 注册了 MyEvent 事件的处理器
             eventBus.register(handler);
 
             for (int i = 0; i < nbEvents; i++) {
+                // 异步发送事件（存到数据库）
                 eventBus.post(new MyEvent("my-event", (long) i, "MY_EVENT_TYPE", 1L, 2L, UUID.randomUUID()));
             }
+            // 由于是异步发送，所以for跳出后，数据不一定已经存到数据库，休眠一段时间
             final boolean completed = handler.waitForCompletion(10000);
             Assert.assertEquals(completed, true);
         } catch (final Exception e) {

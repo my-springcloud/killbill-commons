@@ -1,8 +1,8 @@
 killbill-queue
 ==============
 
-* Notification Queue: persistent job queue, used for jobs scheduling
-* Persistent Bus: persistent message bus
+* Notification Queue: persistent job queue, used for jobs scheduling 用于处理例程
+* Persistent Bus: persistent message bus 用于处理即时消息
 
 The persistent store is a database. The library has successfully been tested on MySQL flavors (MySQL, MariaDB, Aurora and Percona),
 PostgreSQL and H2.
@@ -11,24 +11,27 @@ PostgreSQL and H2.
 
 ### Notification Queue
 
-* Retries: if a call to a third-party service fails for instance, schedule a retry in the future (e.g. wait 15').
-* Periodic scheduler: such as scheduling daily jobs.
+* Retries: if a call to a third-party service fails for instance, schedule a retry in the future (e.g. wait 15'). 错误重试
+* Periodic scheduler: such as scheduling daily jobs. 例程
 
 ### Persistent Bus
 
-* Communicate asynchronously across nodes without an external messaging system (e.g. ActiveMQ).
+* Communicate asynchronously across nodes without an external messaging system (e.g. ActiveMQ). 无需外部消息传递系统即可跨节点异步通信
 
 ## Advantages
 
-* **Performance:** assuming a no-op processing handler, the library can sustain on a single node a rate of 150 events/s
+* **Performance 性能:** assuming a no-op processing handler, the library can sustain on a single node a rate of 150 events/s
 with an introduced latency tp99 of 1ms (time between the event is inserted in the queue and the time it is processed).
+假设没有操作处理程序，则库可以在单个节点上维持150个事件/秒的速率，并引入1ms的等待时间tp99（事件插入队列与处理时间之间的时间）。
 * **Battle tested:** the library has successfully processed billions of entries over the years and it is expected to be
 highly resilient towards all kinds of failure scenarii (e.g. nodes going down).
+多年来，该库已成功处理了数十亿条条目，并且有望对各种故障场景（例如节点故障）具有高度的适应性
 * **Simple:** embeddable with no third-party service dependency (e.g. Redis).
 
 ### Dependencies
 
 For historical reasons, the library depends on a few libraries (the list could be reduced at some point if needed):
+由于历史原因，该库依赖于几个库（如果需要，可以在某些时候减少列表）：
 
 * Jackson: events are serialized as JSON in the database
 * Google Guava utilities

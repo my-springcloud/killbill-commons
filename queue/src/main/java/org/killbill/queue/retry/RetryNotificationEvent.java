@@ -28,6 +28,7 @@ public class RetryNotificationEvent implements NotificationEvent {
     private final String originalEvent;
     private final Class originalEventClass;
     private final DateTime originalEffectiveDate;
+    // 重试次数
     private final int retryNb;
 
     @JsonCreator

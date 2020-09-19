@@ -28,7 +28,7 @@ import org.killbill.queue.api.QueueLifecycle;
 
 
 /**
- * A NotificationQueue offers a persistent queue with a set of API to record future notifications along with their callbacks.
+ * A NotificationQueue offers a persistent queue with a set of API to record future notifications along with their callbacks. 记录将来的通知及其回调
  *
  * When an Iterable is returned, the client must iterate through all results to close the DB connection.
  */

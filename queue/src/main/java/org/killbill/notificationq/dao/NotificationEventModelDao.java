@@ -27,6 +27,9 @@ import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 public class NotificationEventModelDao extends BusEventModelDao {
 
     private UUID futureUserToken;
+    /**
+     * 生效时间
+     */
     private DateTime effectiveDate;
     private String queueName;
 

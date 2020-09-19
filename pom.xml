@@ -42,12 +42,7 @@
         <module>concurrent</module>
         <module>embeddeddb</module>
         <module>jdbi</module>
-        <module>locker</module>
         <module>queue</module>
-        <module>skeleton</module>
-        <module>xmlloader</module>
-        <module>automaton</module>
-        <module>metrics</module>
     </modules>
     <scm>
         <connection>scm:git:git://github.com/killbill/killbill-commons.git</connection>
@@ -97,29 +92,12 @@
             </dependency>
             <dependency>
                 <groupId>org.kill-bill.commons</groupId>
-                <artifactId>killbill-embeddeddb-h2</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.kill-bill.commons</groupId>
                 <artifactId>killbill-embeddeddb-mysql</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.kill-bill.commons</groupId>
                 <artifactId>killbill-embeddeddb-mysql</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.kill-bill.commons</groupId>
-                <artifactId>killbill-embeddeddb-postgresql</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.kill-bill.commons</groupId>
-                <artifactId>killbill-embeddeddb-postgresql</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
