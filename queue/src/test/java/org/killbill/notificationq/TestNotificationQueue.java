@@ -85,7 +85,7 @@ public class TestNotificationQueue extends TestSetup {
         }
     }
 
-    private static final class TestNotificationKey implements NotificationEvent, Comparable<TestNotificationKey> {
+    public static final class TestNotificationKey implements NotificationEvent, Comparable<TestNotificationKey> {
 
         private final String value;
 
@@ -139,10 +139,14 @@ public class TestNotificationQueue extends TestSetup {
     @BeforeMethod(groups = "slow")
     public void beforeMethod() throws Exception {
         super.beforeMethod();
+        // 队列服务（创建删除队列）
         queueService = new DefaultNotificationQueueService(getDBI(), clock, getNotificationQueueConfig(), metricRegistry);
         retryableQueueService = new RetryableNotificationQueueService(queueService);
         eventsReceived = 0;
     }
+
+
+
 
     /**
      * Test that we can post a notification in the future from a transaction and get the notification
@@ -154,12 +158,13 @@ public class TestNotificationQueue extends TestSetup {
     public void testSimpleNotification() throws Exception {
 
         final Map<NotificationEvent, Boolean> expectedNotifications = new TreeMap<NotificationEvent, Boolean>();
-
+        // 创建通知队列
         final NotificationQueue queue = queueService.createNotificationQueue("test-svc",
                 "foo",
                 new NotificationQueueHandler() {
                     @Override
                     public void handleReadyNotification(final NotificationEvent eventJson, final DateTime eventDateTime, final UUID userToken, final Long searchKey1, final Long searchKey2) {
+                        // 一次接收一个通知
                         synchronized (expectedNotifications) {
                             log.info("Handler received key: " + eventJson);
 
@@ -190,14 +195,16 @@ public class TestNotificationQueue extends TestSetup {
         final NotificationEvent eventJson5 = new TestNotificationKey(key5.toString());
         expectedNotifications.put(eventJson5, Boolean.FALSE);
 
+        // 启动通知队列
         queue.startQueue();
 
         // ms will be truncated in the database
         final DateTime now = DefaultClock.truncateMs(new DateTime());
+        // 现在+2000毫秒
         final DateTime readyTime = now.plusMillis(2000);
 
         final DBI dbi = getDBI();
-        /* 发送通知 */
+        /* 发送通知（就是持久化到数据库） */
         dbi.inTransaction(new TransactionCallback<Object>() {
             @Override
             public Object inTransaction(final Handle conn, final TransactionStatus status) throws Exception {
@@ -242,10 +249,11 @@ public class TestNotificationQueue extends TestSetup {
                 return null;
             }
         });
-
+        // 没有在处理中的通知，状态为 IN_PROCESSING
         Assert.assertEquals(Iterables.<NotificationEventWithMetadata<TestNotificationKey>>size(queue.getInProcessingNotifications()), 0);
+        // 状态为 AVAILABLE，时间小于当前时间
         Assert.assertEquals(queue.getNbReadyEntries(readyTime), 4);
-
+        // 将来 两条
         final List<NotificationEventWithMetadata> futuresAll = ImmutableList.<NotificationEventWithMetadata>copyOf(queue.getFutureNotificationForSearchKeys(SEARCH_KEY_1, SEARCH_KEY_2));
         Assert.assertEquals(futuresAll.size(), 2);
         int found = 0;
@@ -323,6 +331,7 @@ public class TestNotificationQueue extends TestSetup {
         queue.startQueue();
 
         final DateTime now = clock.getUTCNow();
+
         final int MAX_NOTIFICATIONS = 100;
         for (int i = 0; i < MAX_NOTIFICATIONS; i++) {
             final String value = new Integer(i).toString();
@@ -369,6 +378,7 @@ public class TestNotificationQueue extends TestSetup {
                 });
 
                 if (completed.size() == MAX_NOTIFICATIONS) {
+                    // 队列全部处理完才退出
                     success = true;
                     break;
                 }
@@ -390,6 +400,7 @@ public class TestNotificationQueue extends TestSetup {
     /**
      * Test that we can post a notification in the future from a transaction and get the notification
      * callback with the correct key when the time is ready
+     * 多个消息处理器
      *
      * @throws Exception
      */

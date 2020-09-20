@@ -158,6 +158,18 @@ public interface QueueSqlDao<T extends EventEntryModelDao> extends Transactional
                             @Nullable @Define("owner") String owner,
                             @Define("tableName") final String tableName);
 
+    /**
+     *     select
+     *       <allTableFields()>
+     *     from <tableName>
+     *     where
+     *       processing_state = 'IN_PROCESSING'
+     *     order by
+     *       <readyOrderByClause()>
+     *     ;
+     * @param tableName
+     * @return
+     */
     @SqlQuery
     List<T> getInProcessingEntries(@Define("tableName") final String tableName);
 

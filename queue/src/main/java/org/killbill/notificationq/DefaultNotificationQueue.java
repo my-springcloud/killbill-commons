@@ -44,7 +44,6 @@ import org.killbill.notificationq.dao.NotificationSqlDao;
 import org.killbill.queue.DBBackedQueue;
 import org.killbill.queue.InTransaction;
 import org.killbill.queue.QueueObjectMapper;
-import org.killbill.queue.api.PersistentQueueConfig.PersistentQueueMode;
 import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 import org.killbill.queue.dao.QueueSqlDao;
 import org.killbill.queue.dispatching.CallableCallbackBase;
@@ -65,9 +64,11 @@ public class DefaultNotificationQueue implements NotificationQueue {
     private static final Logger logger = LoggerFactory.getLogger(DefaultNotificationQueue.class);
 
     private final DBI dbi;
+    // 数据库队列
     private final DBBackedQueue<NotificationEventModelDao> dao;
     private final String svcName;
     private final String queueName;
+    // 消息处理器
     private final NotificationQueueHandler handler;
     private final NotificationQueueService notificationQueueService;
     private final ObjectMapper objectMapper;
@@ -101,6 +102,9 @@ public class DefaultNotificationQueue implements NotificationQueue {
         this.prof = new Profiling<Iterable<NotificationEventModelDao>, RuntimeException>();
     }
 
+    /**
+     * 记录未来重试的通知
+     */
     @Override
     public void recordFutureNotification(final DateTime futureNotificationTime, final NotificationEvent event, final UUID userToken, final Long searchKey1, final Long searchKey2) throws IOException {
         final String eventJson = objectMapper.writeValueAsString(event);

@@ -89,12 +89,45 @@ public interface PersistentBusSqlDao extends QueueSqlDao<BusEventModelDao> {
                                                                                       @Bind("searchKey2") final Long searchKey2,
                                                                                       @Define("tableName") final String tableName);
 
+    /**
+     *     select
+     *       <allTableFields()>
+     *     from <historyTableName>
+     *     where
+     *       queue_name = :queueName
+     *       and search_key1 = :searchKey1
+     *       and search_key2 = :searchKey2
+     *     order by
+     *       <readyOrderByClause()>
+     * @param searchKey1
+     * @param searchKey2
+     * @param historyTableName
+     * @return
+     */
     @SqlQuery
     @SmartFetchSize(shouldStream = true)
     public Iterator<BusEventModelDao> getHistoricalQueueEntriesForSearchKeys(@Bind("searchKey1") final Long searchKey1,
                                                                              @Bind("searchKey2") final Long searchKey2,
                                                                              @Define("historyTableName") final String historyTableName);
 
+    /**
+     *  select
+     *       <allTableFields()>
+     *     from <historyTableName>
+     *     where
+     *           queue_name = :queueName
+     *       and effective_date >= cast(coalesce(:minEffectiveDate, '1970-01-01') as datetime)
+     *       and search_key2 = :searchKey2
+     *     order by
+     *       effective_date asc
+     *       , created_date asc
+     *       , record_id
+     *
+     * @param minCreatedDate
+     * @param searchKey2
+     * @param historyTableName
+     * @return
+     */
     @SqlQuery
     @SmartFetchSize(shouldStream = true)
     public Iterator<BusEventModelDao> getHistoricalQueueEntriesForSearchKey2(@Bind("minCreatedDate") final DateTime minCreatedDate,

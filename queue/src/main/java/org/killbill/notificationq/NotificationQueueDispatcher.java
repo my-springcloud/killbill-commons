@@ -64,6 +64,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
 
     protected final NotificationQueueConfig config;
     protected final Clock clock;
+    // 队列名称，队列映射关系
     protected final Map<String, NotificationQueue> queues;
     protected final DBBackedQueue<NotificationEventModelDao> dao;
     protected final MetricRegistry metricRegistry;
@@ -78,7 +79,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
     private volatile int activeQueues;
 
     private final NotificationCallableCallback notificationCallableCallback;
-
+    // 挖掘机
     private final NotificationReaper reaper;
 
     // Package visibility on purpose
@@ -192,6 +193,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
         log.debug("Notifications from {} to process: {}", config.getTableName(), notifications);
 
         for (final NotificationEventModelDao cur : notifications) {
+            // 派发事件
             dispatcher.dispatch(cur);
         }
         // No need to return time, this is easy to compute from caller

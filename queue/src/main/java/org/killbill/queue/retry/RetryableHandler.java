@@ -25,6 +25,9 @@ import org.killbill.clock.Clock;
 import org.killbill.notificationq.api.NotificationEvent;
 import org.killbill.notificationq.api.NotificationQueueService.NotificationQueueHandler;
 
+/**
+ * 重试消息的处理程序
+ */
 public class RetryableHandler implements NotificationQueueHandler {
 
     protected final Clock clock;
@@ -46,7 +49,7 @@ public class RetryableHandler implements NotificationQueueHandler {
         try {
             handlerDelegate.handleReadyNotification(notificationEvent, eventDateTime, userToken, searchKey1, searchKey2);
         } catch (final QueueRetryException e) {
-            // Let the retry queue handle the exception
+            // Let the retry queue handle the exception 排期重试
             retryableService.scheduleRetry(e, notificationEvent, eventDateTime, userToken, searchKey1, searchKey2, 1);
         }
     }

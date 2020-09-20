@@ -25,14 +25,16 @@ import org.joda.time.DateTime;
 import org.killbill.queue.api.QueueLifecycle;
 
 /**
- * A service to create and delete NotificationQueue 创建和删除 NotificationQueue
+ * A service to create and delete NotificationQueue (创建和删除 NotificationQueue)
  */
 public interface NotificationQueueService extends QueueLifecycle {
-
+    /**
+     * NotificationQueue 消息处理程序
+     */
     interface NotificationQueueHandler {
 
         /**
-         * Called for each notification ready
+         * Called for each notification ready（调用这个方法处理通知消息）
          *
          * @param eventJson  the notification key associated to that notification entry
          * @param userToken  user token associated with that notification entry
@@ -63,9 +65,9 @@ public interface NotificationQueueService extends QueueLifecycle {
     /**
      * Creates a new NotificationQueue for a given associated with the given service and queueName
      *
-     * @param svcName   the name of the service using that queue 使用队列的服务名称
+     * @param svcName   the name of the service using that queue 服务名称
      * @param queueName a name for that queue (unique per service) 队列名称
-     * @param handler   the handler required for notifying the caller of state change
+     * @param handler   the handler required for notifying the caller of state change 将状态变更通知给 caller
      * @return a new NotificationQueue
      * @throws NotificationQueueAlreadyExists is the queue associated with that service and name already exits
      */

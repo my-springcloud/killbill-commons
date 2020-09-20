@@ -60,6 +60,22 @@ public interface NotificationSqlDao extends QueueSqlDao<NotificationEventModelDa
                                                                                         @Bind("searchKey2") final Long searchKey2,
                                                                                         @Define("tableName") final String tableName);
 
+    /**
+     *     select
+     *       <allTableFields()>
+     *     from <historyTableName>
+     *     where
+     *       queue_name = :queueName
+     *       and search_key1 = :searchKey1
+     *       and search_key2 = :searchKey2
+     *     order by
+     *       <readyOrderByClause()>
+     * @param queueName
+     * @param searchKey1
+     * @param searchKey2
+     * @param historyTableName
+     * @return
+     */
     @SqlQuery
     @SmartFetchSize(shouldStream = true)
     Iterator<NotificationEventModelDao> getHistoricalQueueEntriesForSearchKeys(@Bind("queueName") String queueName,

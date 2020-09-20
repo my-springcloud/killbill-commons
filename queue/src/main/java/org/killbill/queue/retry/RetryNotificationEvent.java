@@ -25,7 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class RetryNotificationEvent implements NotificationEvent {
 
+    /** 原始事件 */
     private final String originalEvent;
+    /** 原始事件类型 */
     private final Class originalEventClass;
     private final DateTime originalEffectiveDate;
     // 重试次数
