@@ -323,7 +323,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
     }
 
     /**
-     * 从数据库中加载特定数量的数据到内存中
+     * 从数据库中加载特定数量的数据到内存中 （初始化内存缓存）
      */
     private void initializeInflightQueue() {
 

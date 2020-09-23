@@ -17,10 +17,7 @@
 
 package org.killbill.queue.retry;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.killbill.billing.util.queue.QueueRetryException;
@@ -35,12 +32,14 @@ import org.killbill.queue.api.QueueEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * 描述：可重试服务
  * 场景：
- * 用法：
+ * 用法：一个 RetryableService 实例只能和一个 原始 notificationQueueService 绑定
  */
 public abstract class RetryableService {
 
@@ -49,9 +48,15 @@ public abstract class RetryableService {
     private static final Logger log = LoggerFactory.getLogger(RetryableService.class);
 
     private final ObjectMapper objectMapper;
-    /** 队列服务(创建和删除queue) */
+    /**
+     * 队列服务(创建和删除queue)
+     * 使用场景：在 #initialize() 调用，来构建 retryNotificationQueue 属性
+     */
     private final NotificationQueueService notificationQueueService;
-    /** 可重试通知队列 */
+
+    /**
+     * 从数据库接收重试事件 RetryNotificationEvent
+     */
     private NotificationQueue retryNotificationQueue;
 
     public RetryableService(NotificationQueueService notificationQueueService) {
@@ -69,17 +74,20 @@ public abstract class RetryableService {
     }
 
     /**
-     *
-     * @param queueName
-     * @param originalQueueHandler RetryNotificationEvent 中封装的事件所在队列关联的事件处理器
+     * @param queueName            重试队列名称
+     * @param originalQueueHandler 原始队列的处理程序
      */
     public void initialize(final String queueName, final NotificationQueueHandler originalQueueHandler) {
         try {
-            // 通知消息就绪后，调用此方法进行处理
+            /**
+             * 可重试事件的处理程序，该处理程序处理 retryNotificationQueue 中的事件
+             */
             final NotificationQueueHandler notificationQueueHandler = new NotificationQueueHandler() {
 
                 /**
-                 * 事件处理逻辑
+                 * 事件处理逻辑：
+                 * 1、只处理 RetryNotificationEvent 事件
+                 *
                  * @param eventJson  the notification key associated to that notification entry
                  */
                 @Override
@@ -101,31 +109,31 @@ public abstract class RetryableService {
                         }
 
                         try {
-                            // 调用原始事件处理程序
+                            // 调用原始事件处理程序 处理事件
                             originalQueueHandler.handleReadyNotification(notificationEvent,
-                                                                         eventDateTime,
-                                                                         userToken,
-                                                                         searchKey1,
-                                                                         searchKey2);
+                                    eventDateTime,
+                                    userToken,
+                                    searchKey1,
+                                    searchKey2);
                         } catch (final QueueRetryException e) {
-                            // 排期重试，异常被捕获，并抛出 RetryableInternalException 异常
+                            // 捕获异常，排期重试，并抛出 RetryableInternalException 异常
                             scheduleRetry(e,
-                                          notificationEvent,
-                                          retryNotificationEvent.getOriginalEffectiveDate(),
-                                          userToken,
-                                          searchKey1,
-                                          searchKey2,
-                                          retryNotificationEvent.getRetryNb() + 1);
+                                    notificationEvent,
+                                    retryNotificationEvent.getOriginalEffectiveDate(),
+                                    userToken,
+                                    searchKey1,
+                                    searchKey2,
+                                    retryNotificationEvent.getRetryNb() + 1);
                         }
                     } else { // case 2:
                         log.error("Retry service received an unexpected event className='{}'", eventJson.getClass());
                     }
                 }
             };
-            // 创建可重试通知队列
+            // 用于接收 RetryNotificationEvent 事件
             this.retryNotificationQueue = notificationQueueService.createNotificationQueue(RETRYABLE_SERVICE_NAME,
-                                                                                           queueName,
-                                                                                           notificationQueueHandler);
+                    queueName,
+                    notificationQueueHandler);
         } catch (final NotificationQueueAlreadyExists notificationQueueAlreadyExists) {
             throw new RuntimeException(notificationQueueAlreadyExists);
         }
@@ -162,6 +170,7 @@ public abstract class RetryableService {
 
         try {
             final NotificationEvent retryNotificationEvent = new RetryNotificationEvent(objectMapper.writeValueAsString(originalNotificationEvent), originalNotificationEvent.getClass(), originalEffectiveDate, retryNb);
+            // 插入新的排期任务
             retryNotificationQueue.recordFutureNotification(effectiveDate, retryNotificationEvent, userToken, searchKey1, searchKey2);
             throw new RetryableInternalException(true);
         } catch (final IOException e) {
@@ -172,6 +181,7 @@ public abstract class RetryableService {
 
     /**
      * 计算重试时间
+     *
      * @return
      */
     private DateTime computeRetryDate(final QueueRetryException queueRetryException, final DateTime initialEventDateTime, final int retryNb) {

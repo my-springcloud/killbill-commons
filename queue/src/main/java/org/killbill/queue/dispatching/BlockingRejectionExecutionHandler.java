@@ -31,12 +31,17 @@ public class BlockingRejectionExecutionHandler implements RejectedExecutionHandl
     public BlockingRejectionExecutionHandler() {
     }
 
-
+    /**
+     * 当 ThreadPoolExecutor 无法执行 Runnable 时，就会调用这个方法
+     * @param r
+     * @param executor
+     */
     @Override
     public void rejectedExecution(final Runnable r, final ThreadPoolExecutor executor) {
         try {
             if (!executor.isShutdown()) {
                 logger.info("BlockingRejectionExecutionHandler will block request");
+                // 入队，如果队列满，将会阻塞
                 executor.getQueue().put(r);
             }
         } catch (final InterruptedException e) {

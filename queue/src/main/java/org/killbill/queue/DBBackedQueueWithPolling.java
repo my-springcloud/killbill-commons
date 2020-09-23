@@ -41,6 +41,10 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
+/**
+ * 轮询方式
+ * @param <T>
+ */
 public class DBBackedQueueWithPolling<T extends EventEntryModelDao> extends DBBackedQueue<T> {
 
     public DBBackedQueueWithPolling(final Clock clock,

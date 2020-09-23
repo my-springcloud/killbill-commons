@@ -20,6 +20,9 @@ package org.killbill.commons.concurrent;
 
 import org.slf4j.Logger;
 
+/**
+ * 装饰器，确保 runnable 执行是抛出的任何异常都会被打印出日志，并不再抛出异常
+ */
 class WrappedRunnable implements Runnable {
 
     private final Logger log;

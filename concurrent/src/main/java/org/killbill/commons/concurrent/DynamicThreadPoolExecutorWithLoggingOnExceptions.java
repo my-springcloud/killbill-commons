@@ -23,11 +23,24 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 // See http://stackoverflow.com/questions/19528304/how-to-get-the-threadpoolexecutor-to-increase-threads-to-max-before-queueing/19538899#19538899
-public class DynamicThreadPoolExecutorWithLoggingOnExceptions extends LoggingExecutor {
 
+/**
+ * 可以动态调整线程池大小，并且在任务执行异常的时候打印出日志
+ */
+public class DynamicThreadPoolExecutorWithLoggingOnExceptions extends LoggingExecutor {
+    // 初始的线程池中线程的最小数量
     private final int inputSpecifiedCorePoolSize;
+    // 当前执行任务总数
     private int currentTasks;
 
+    /**
+     *
+     * @param corePoolSize 线程池中线程的最小数量
+     * @param maximumPoolSize
+     * @param name
+     * @param keepAliveTime
+     * @param unit
+     */
     public DynamicThreadPoolExecutorWithLoggingOnExceptions(final int corePoolSize, final int maximumPoolSize, final String name, final long keepAliveTime, final TimeUnit unit) {
         super(corePoolSize, maximumPoolSize, name, keepAliveTime, unit);
         this.inputSpecifiedCorePoolSize = corePoolSize;
@@ -61,10 +74,11 @@ public class DynamicThreadPoolExecutorWithLoggingOnExceptions extends LoggingExe
 
     @Override
     public void execute(final Runnable runnable) {
-        synchronized (this) {
+        synchronized (this) { // 同步代码块
             currentTasks++;
             setCorePoolSizeToTaskCountWithinBounds();
         }
+        // 执行任务
         super.execute(runnable);
     }
 
@@ -76,15 +90,17 @@ public class DynamicThreadPoolExecutorWithLoggingOnExceptions extends LoggingExe
             setCorePoolSizeToTaskCountWithinBounds();
         }
     }
-
+    // 将线程池核心大小设置在 currentTasks 以内
     private void setCorePoolSizeToTaskCountWithinBounds() {
         int updatedCorePoolSize = currentTasks;
         if (updatedCorePoolSize < inputSpecifiedCorePoolSize) {
             updatedCorePoolSize = inputSpecifiedCorePoolSize;
         }
         if (updatedCorePoolSize > getMaximumPoolSize()) {
+            // 不允许超过线程池中的最大线程数量
             updatedCorePoolSize = getMaximumPoolSize();
         }
+        // 动态调整线程池最小活跃线程数量
         setCorePoolSize(updatedCorePoolSize);
     }
 }

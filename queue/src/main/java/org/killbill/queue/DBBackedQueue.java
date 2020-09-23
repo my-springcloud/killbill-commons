@@ -61,6 +61,8 @@ import com.google.common.collect.Iterables;
  * queries to the database. Alternatively, the inflight queue is not used and the search query is always run when we need to retrieve
  * new entries.
  *
+ * 和数据库进行交互，并基于数据库提供queue基本的操作方法。
+ *
  * @param <T>
  */
 public abstract class DBBackedQueue<T extends EventEntryModelDao> {
@@ -70,7 +72,9 @@ public abstract class DBBackedQueue<T extends EventEntryModelDao> {
     protected final String DB_QUEUE_LOG_ID;
 
     protected final IDBI dbi;
+    // sqlDao 真实类型
     protected final Class<? extends QueueSqlDao<T>> sqlDaoClass;
+    // 数据库访问对象
     protected final QueueSqlDao<T> sqlDao;
     protected final Clock clock;
     protected final PersistentQueueConfig config;

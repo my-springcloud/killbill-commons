@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Extension of {@link java.util.concurrent.ThreadPoolExecutor} that ensures any uncaught exceptions are logged.
+ *
+ * 确保所有的任务被执行时抛出的异常都会被打印出来
  */
 public class LoggingExecutor extends ThreadPoolExecutor {
 

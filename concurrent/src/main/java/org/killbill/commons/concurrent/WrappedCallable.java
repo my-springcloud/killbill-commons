@@ -20,6 +20,10 @@ import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
 
+/**
+ * 装饰器，确保 runnable 执行是抛出的任何异常都会被打印出日志，并不再抛出异常
+ * @param <T>
+ */
 class WrappedCallable<T> implements Callable<T> {
 
     private final Logger log;

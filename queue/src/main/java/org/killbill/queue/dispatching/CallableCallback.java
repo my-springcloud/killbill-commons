@@ -23,9 +23,7 @@ import org.killbill.queue.api.QueueEvent;
 import org.killbill.queue.dao.EventEntryModelDao;
 
 /**
- * 可调用的回调类
- * @param <E>
- * @param <M>
+ * 真正的事件派发逻辑，包含在java对象和数据库记录之间序列化、反序列化事件的功能
  */
 public interface CallableCallback<E extends QueueEvent, M extends EventEntryModelDao> {
 
@@ -39,9 +37,25 @@ public interface CallableCallback<E extends QueueEvent, M extends EventEntryMode
      */
     void dispatch(final E event, final M modelDao) throws Exception;
 
+    /**
+     * 基于 modelDao 构建一个新的实体
+     * @param modelDao
+     * @param now
+     * @param newState
+     * @param newErrorCount
+     * @return
+     */
     M buildEntry(final M modelDao, final DateTime now, final PersistentQueueEntryLifecycleState newState, final long newErrorCount);
 
+    /**
+     * 将数据移动到 历史表
+     * @param entries
+     */
     void moveCompletedOrFailedEvents(final Iterable<M> entries);
 
+    /**
+     * 更新实体
+     * @param updatedEntry
+     */
     void updateRetriedEvents(final M updatedEntry);
 }

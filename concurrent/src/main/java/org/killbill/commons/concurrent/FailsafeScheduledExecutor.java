@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Extension of {@link java.util.concurrent.ScheduledThreadPoolExecutor} that will continue to schedule a task even if the previous run had an exception.
  * Also ensures that uncaught exceptions are logged.
+ *
+ * 即使先前的运行有异常，也会继续安排任务。
+ * 确保所有的未捕获异常都会被打印出日志
  */
 public class FailsafeScheduledExecutor extends ScheduledThreadPoolExecutor {
 

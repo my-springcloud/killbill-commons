@@ -17,15 +17,6 @@
 
 package org.killbill.queue.dispatching;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-
 import org.killbill.clock.Clock;
 import org.killbill.commons.concurrent.DynamicThreadPoolExecutorWithLoggingOnExceptions;
 import org.killbill.queue.DefaultQueueLifecycle;
@@ -38,25 +29,38 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import java.lang.reflect.InvocationTargetException;
+import java.util.UUID;
+import java.util.concurrent.*;
+
 public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
 
     private static final Logger log = LoggerFactory.getLogger(Dispatcher.class);
 
     // Dynamic ThreadPool Executor
+    // 线程池设置的最小线程数量
     private final int corePoolSize;
+    // 线程池允许的最大线程数量
     private final int maximumPoolSize;
+    // 已活跃时间
     private final long keepAliveTime;
     private final TimeUnit keepAliveTimeUnit;
+    // 存放要执行的任务
     private final BlockingQueue<Runnable> workQueue;
+    // 线程工厂
     private final ThreadFactory threadFactory;
+    // 任务被拒绝时候应该调用的处理器
     private final RejectedExecutionHandler rejectionHandler;
 
+    //错误重试次数
     private final int maxFailureRetries;
+    // 回调处理器
     private final CallableCallback<E, M> handlerCallback;
     private final DefaultQueueLifecycle parentLifeCycle;
     private final Clock clock;
 
     // Deferred in start sequence to allow for restart, which is not possible after the shutdown (mostly for test purpose)
+    // 用于执行任务
     private ExecutorService handlerExecutor;
 
     public Dispatcher(final int corePoolSize,
@@ -78,16 +82,19 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
         this.rejectionHandler = rejectionHandler;
 
         this.clock = clock;
+        // 错误重试次数
         this.maxFailureRetries = config.getMaxFailureRetries();
         this.handlerCallback = handlerCallback;
         this.parentLifeCycle = parentLifeCycle;
     }
 
     public void start() {
+        // 初始化线程执行器
         this.handlerExecutor = new DynamicThreadPoolExecutorWithLoggingOnExceptions(corePoolSize, maximumPoolSize, keepAliveTime, keepAliveTimeUnit, workQueue, threadFactory, rejectionHandler);
     }
 
     public void stop() {
+        // 关闭线程执行器
         handlerExecutor.shutdown();
         try {
             handlerExecutor.awaitTermination(5, TimeUnit.SECONDS);
@@ -98,14 +105,28 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
 
     /**
      * 派发逻辑，创建一个包含回调的被派发实体
+     *
      * @param modelDao
      */
     public void dispatch(final M modelDao) {
         log.debug("Dispatching entry {}", modelDao);
-        final CallableQueueHandler<E, M> entry = new CallableQueueHandler<E, M>(modelDao, handlerCallback, parentLifeCycle, clock, maxFailureRetries);
+        // 构建 callable
+        final CallableQueueHandler<E, M> entry = new CallableQueueHandler<E, M>(
+                modelDao,
+                handlerCallback,
+                parentLifeCycle,
+                clock,
+                maxFailureRetries  // 重试次数
+        );
+        // 将任务提交给 ExecutorService
         handlerExecutor.submit(entry);
     }
 
+    /**
+     * 队列消息处理器
+     * @param <E>
+     * @param <M>
+     */
     public static class CallableQueueHandler<E extends QueueEvent, M extends EventEntryModelDao> implements Callable<E> {
 
         private static final String MDC_KB_USER_TOKEN = "kb.userToken";
@@ -152,7 +173,7 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
                         }
                         errorCount++;
                     } finally {
-
+                        // 如果 parentLifeCycle 存在，则构建新的数据库实体 调用 parentLifeCycle 的业务逻辑
                         if (parentLifeCycle != null) {
                             if (lastException == null) {
                                 // 成功

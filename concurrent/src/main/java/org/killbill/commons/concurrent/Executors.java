@@ -35,6 +35,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Similar to Java's {@link java.util.concurrent.Executors}, but ensures either a {@link LoggingExecutor} or named {@link FailsafeScheduledExecutor} is used.
+ * 执行器工具类
  */
 @SuppressWarnings("UnusedDeclaration")
 public class Executors {

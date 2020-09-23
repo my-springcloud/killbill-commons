@@ -29,14 +29,16 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+
 public abstract class CallableCallbackBase<E extends QueueEvent, M extends EventEntryModelDao> implements CallableCallback<E, M> {
 
     private static final Logger log = LoggerFactory.getLogger(CallableCallbackBase.class);
     /**
-     * 基于数据库的队列
+     * 数据库队列
      */
     private final DBBackedQueue<M> dao;
     private final Clock clock;
+    /** 持久化队列配置 */
     private final PersistentQueueConfig config;
     private final ObjectMapper objectMapper;
 
@@ -47,6 +49,11 @@ public abstract class CallableCallbackBase<E extends QueueEvent, M extends Event
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 将数据库行记录反序列化为 QueueEvent
+     * @param modelDao
+     * @return
+     */
     @Override
     public E deserialize(final M modelDao) {
         return deserializeEvent(modelDao, objectMapper);
@@ -64,6 +71,7 @@ public abstract class CallableCallbackBase<E extends QueueEvent, M extends Event
     public static <E extends QueueEvent, M extends EventEntryModelDao> E deserializeEvent(final M modelDao, final ObjectMapper objectMapper) {
         try {
             final Class<?> claz = Class.forName(modelDao.getClassName());
+            // 将 EventEntryModelDao#getEventJson()反序列
             return (E) objectMapper.readValue(modelDao.getEventJson(), claz);
         } catch (final Exception e) {
             log.error(String.format("Failed to deserialize json object %s for class %s", modelDao.getEventJson(), modelDao.getClassName()), e);

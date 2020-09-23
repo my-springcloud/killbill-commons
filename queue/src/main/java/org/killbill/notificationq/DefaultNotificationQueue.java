@@ -66,17 +66,23 @@ public class DefaultNotificationQueue implements NotificationQueue {
     private final DBI dbi;
     // 数据库队列
     private final DBBackedQueue<NotificationEventModelDao> dao;
+    // 服务名称
     private final String svcName;
+    // 队列名称
     private final String queueName;
     // 消息处理器
     private final NotificationQueueHandler handler;
+    // 队列服务 -- 用于创建删除通知队列
     private final NotificationQueueService notificationQueueService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    // 通知队列配置信息
     private final NotificationQueueConfig config;
     private final Profiling<Iterable<NotificationEventModelDao>, RuntimeException> prof;
 
+    // 队列是否初始化
     private AtomicBoolean isInitialized;
+    // 队列是否已经启用
     private AtomicBoolean isStarted;
 
     public DefaultNotificationQueue(final String svcName, final String queueName, final NotificationQueueHandler handler,

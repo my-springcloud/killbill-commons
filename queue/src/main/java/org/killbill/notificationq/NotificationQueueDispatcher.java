@@ -54,18 +54,22 @@ import org.slf4j.LoggerFactory;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 
+/**
+ * 队列派发器，将数据库中的消息派发给queue，并调用订阅端进行处理
+ */
 public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
 
     protected static final Logger log = LoggerFactory.getLogger(NotificationQueueDispatcher.class);
 
     public static final int CLAIM_TIME_MS = (5 * 60 * 1000); // 5 minutes
-
+    // 已处理事件总数
     private final AtomicLong nbProcessedEvents;
 
     protected final NotificationQueueConfig config;
     protected final Clock clock;
     // 队列名称，队列映射关系
     protected final Map<String, NotificationQueue> queues;
+    // 数据库队列 -- 将队列操作映射到数据库操作
     protected final DBBackedQueue<NotificationEventModelDao> dao;
     protected final MetricRegistry metricRegistry;
 
@@ -73,11 +77,14 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
 
     // We could event have one per queue is required...
     private final Dispatcher<NotificationEvent, NotificationEventModelDao> dispatcher;
+
+    // 是否初始化
     private final AtomicBoolean isInitialized;
-
+    // 是否启用
     private volatile boolean isStarted;
+    // 激活的队列数量
     private volatile int activeQueues;
-
+    // 通知回调
     private final NotificationCallableCallback notificationCallableCallback;
     // 挖掘机
     private final NotificationReaper reaper;
@@ -103,6 +110,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
         this.clock = clock;
         this.config = config;
         this.nbProcessedEvents = new AtomicLong();
+        // 数据库队列
         this.dao = new DBBackedQueueWithPolling<NotificationEventModelDao>(clock, dbi, NotificationSqlDao.class, config, config.getTableName(), metricRegistry);
 
         this.queues = new TreeMap<String, NotificationQueue>();
@@ -113,10 +121,11 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
         this.isInitialized = new AtomicBoolean(false);
         this.isStarted = false;
         this.activeQueues = 0;
-
+        // 构建 reaper
         this.reaper = new NotificationReaper(this.dao, config, clock);
-
+        // 构建回调对象
         this.notificationCallableCallback = new NotificationCallableCallback(this);
+        // 构建 dispatcher
         this.dispatcher = new Dispatcher<>(1, config, 10, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(config.getEventQueueCapacity()), notificationQThreadFactory, new BlockingRejectionExecutionHandler(),
                                            clock, notificationCallableCallback, this);
     }
@@ -124,7 +133,9 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
     @Override
     public boolean initQueue() {
         if (isInitialized.compareAndSet(false, true)) {
+            // 初始化持久化队列（初始化缓存等）
             dao.initialize();
+            // 启动派发器
             dispatcher.start();
             return true;
         } else {
@@ -248,8 +259,10 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
             // 执行通知业务逻辑
             handler.handleReadyNotification(key, notification.getEffectiveDate(), notification.getFutureUserToken(), notification.getSearchKey1(), notification.getSearchKey2());
         } catch (final RuntimeException e) {
+            // 重新包装异常
             throw new NotificationQueueException(e);
         } finally {
+            // 处理事件总数加1
             nbProcessedEvents.incrementAndGet();
             // Unclear if those stats should include failures
             perQueueHistogramProcessingTime.update(System.nanoTime() - beforeProcessing);

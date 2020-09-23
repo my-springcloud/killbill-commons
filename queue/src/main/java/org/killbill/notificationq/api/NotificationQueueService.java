@@ -44,6 +44,7 @@ public interface NotificationQueueService extends QueueLifecycle {
         void handleReadyNotification(NotificationEvent eventJson, DateTime eventDateTime, UUID userToken, Long searchKey1, Long searchKey2);
     }
 
+    /** 队列已经存在 */
     final class NotificationQueueAlreadyExists extends Exception {
 
         private static final long serialVersionUID = 1541281L;
@@ -52,7 +53,7 @@ public interface NotificationQueueService extends QueueLifecycle {
             super(msg);
         }
     }
-
+    /** 队列不存在 */
     final class NoSuchNotificationQueue extends Exception {
 
         private static final long serialVersionUID = 1561283L;

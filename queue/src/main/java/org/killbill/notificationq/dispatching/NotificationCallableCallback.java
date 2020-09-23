@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 public class NotificationCallableCallback extends CallableCallbackBase<NotificationEvent, NotificationEventModelDao> {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationCallableCallback.class);
+    // 队列消息派发器
     private final NotificationQueueDispatcher parent;
 
     public NotificationCallableCallback(final NotificationQueueDispatcher parent) {
@@ -47,6 +48,7 @@ public class NotificationCallableCallback extends CallableCallbackBase<Notificat
      */
     @Override
     public void dispatch(final NotificationEvent event, final NotificationEventModelDao modelDao) throws NotificationQueueException {
+        // 获取 modelDao#queueName 绑定的消息处理器
         final NotificationQueueService.NotificationQueueHandler handler = parent.getHandlerForActiveQueue(modelDao.getQueueName());
         if (handler == null) {
             // Will increment errorCount and eventually move to history table.
@@ -54,11 +56,13 @@ public class NotificationCallableCallback extends CallableCallbackBase<Notificat
                     modelDao.getQueueName(),
                     modelDao.getRecordId()));
         }
+        // 委托给消息派发器
         parent.handleNotificationWithMetrics(handler, modelDao, event);
     }
 
     @Override
     public NotificationEventModelDao buildEntry(final NotificationEventModelDao modelDao, final DateTime now, final PersistentQueueEntryLifecycleState newState, final long newErrorCount) {
+        // 数据库实体对象
         return new NotificationEventModelDao(modelDao, CreatorName.get(), now, newState, newErrorCount);
     }
 

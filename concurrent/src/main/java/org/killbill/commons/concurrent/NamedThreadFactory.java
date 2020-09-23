@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Factory that sets the name of each thread it creates to {@code [name]-[id]}.
  * This makes debugging stack traces much easier.
+ * 给每个创建的线程命名
  */
 public class NamedThreadFactory implements ThreadFactory {
 

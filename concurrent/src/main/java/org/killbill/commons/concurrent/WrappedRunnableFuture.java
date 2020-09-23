@@ -23,6 +23,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * 将 WrappedRunnable 和 Future 包装在一起
+ * @param <V>
+ */
 public class WrappedRunnableFuture<V> implements Future<V> {
 
     private final WrappedRunnable runnable;
@@ -71,6 +75,7 @@ public class WrappedRunnableFuture<V> implements Future<V> {
     }
 
     private void checkForException() throws InterruptedException, ExecutionException {
+        // 解析异常并抛出
         final Throwable exception = runnable.getException();
 
         if (exception != null) {

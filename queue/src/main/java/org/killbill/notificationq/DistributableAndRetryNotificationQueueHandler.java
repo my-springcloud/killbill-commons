@@ -17,7 +17,7 @@ import java.util.UUID;
  * @author zenglw
  * @date 2020/9/20 14:23
  */
-public class DistributableNotificationQueueHandler implements NotificationQueueService.NotificationQueueHandler {
+public class DistributableAndRetryNotificationQueueHandler implements NotificationQueueService.NotificationQueueHandler {
 
 
     private final List<Period> retrySchedule;
@@ -32,7 +32,7 @@ public class DistributableNotificationQueueHandler implements NotificationQueueS
         }
     }
 
-    public DistributableNotificationQueueHandler(String queueName, List<Period> retrySchedule) {
+    public DistributableAndRetryNotificationQueueHandler(String queueName, List<Period> retrySchedule) {
         this.eventBusDelegate = new EventBusDelegate(queueName);
         this.retrySchedule = retrySchedule;
     }
@@ -68,6 +68,7 @@ public class DistributableNotificationQueueHandler implements NotificationQueueS
             dispatcher(eventJson);
         } catch (EventBusException e) {
             if (retrySchedule != null) {
+                // 通过抛出 QueueRetryException ，和 RetryableService关联起来
                 throw new QueueRetryException(e, retrySchedule);
             }
             throw new RuntimeException(e);

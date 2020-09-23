@@ -22,6 +22,9 @@ import org.joda.time.DateTime;
 
 import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 
+/**
+ * 数据库行记录
+ */
 public interface EventEntryModelDao {
 
     Long getRecordId();

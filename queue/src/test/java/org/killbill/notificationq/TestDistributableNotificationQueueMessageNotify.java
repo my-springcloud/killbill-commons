@@ -1,7 +1,6 @@
 package org.killbill.notificationq;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import org.joda.time.DateTime;
@@ -11,9 +10,6 @@ import org.killbill.clock.DefaultClock;
 import org.killbill.notificationq.api.NotificationEvent;
 import org.killbill.notificationq.api.NotificationQueue;
 import org.killbill.notificationq.api.NotificationQueueService;
-import org.killbill.notificationq.dao.NotificationEventModelDao;
-import org.killbill.notificationq.dao.NotificationSqlDao;
-import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 import org.killbill.queue.retry.RetryableHandler;
 import org.killbill.queue.retry.RetryableService;
 import org.skife.jdbi.v2.DBI;
@@ -22,16 +18,12 @@ import org.skife.jdbi.v2.TransactionCallback;
 import org.skife.jdbi.v2.TransactionStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
 
@@ -74,7 +66,7 @@ public class TestDistributableNotificationQueueMessageNotify extends TestSetup {
     @Test(groups = "slow")
     public void testRetryStateForNotifications() throws Exception {
         // 4 retries
-        final DistributableNotificationQueueHandler handlerDelegate = new DistributableNotificationQueueHandler("queueName", ImmutableList.<Period>of(Period.millis(1),
+        final DistributableAndRetryNotificationQueueHandler handlerDelegate = new DistributableAndRetryNotificationQueueHandler("queueName", ImmutableList.<Period>of(Period.millis(1),
                 Period.millis(1),
                 Period.millis(1),
                 Period.days(1)));
@@ -107,11 +99,11 @@ public class TestDistributableNotificationQueueMessageNotify extends TestSetup {
     public void testDistributableNotificationQueueHandler() throws Exception {
 
         final Map<NotificationEvent, Boolean> expectedNotifications = new TreeMap<NotificationEvent, Boolean>();
-        DistributableNotificationQueueHandler distributableNotificationQueueHandler = new DistributableNotificationQueueHandler("test-svc",null);
-        distributableNotificationQueueHandler.register(new QueueMessageNotify());
+        DistributableAndRetryNotificationQueueHandler distributableAndRetryNotificationQueueHandler = new DistributableAndRetryNotificationQueueHandler("test-svc",null);
+        distributableAndRetryNotificationQueueHandler.register(new QueueMessageNotify());
         // 创建通知队列
         final NotificationQueue queue = queueService.createNotificationQueue("test-svc",
-                "foo", distributableNotificationQueueHandler
+                "foo", distributableAndRetryNotificationQueueHandler
         );
 
         // 启动通知队列
