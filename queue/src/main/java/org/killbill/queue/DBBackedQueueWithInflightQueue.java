@@ -59,7 +59,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
     // Drain inflightQ using getMaxInFlightEntries() config at a time and sleep for a maximum of 100 mSec if there is nothing to do
     // 如果 inflightEvents 中没有event，最多再等待100毫秒
     private static final long INFLIGHT_POLLING_TIMEOUT_MSEC = 100;
-    // 队列
+    // 事务已经提交的record_id会保存在这个队列里面
     private final LinkedBlockingQueue<Long> inflightEvents;
 
     private final DatabaseTransactionNotificationApi databaseTransactionNotificationApi;
@@ -207,7 +207,10 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
             @Override
             public Void inTransaction(final QueueSqlDao<T> transactional, final TransactionStatus status) throws Exception {
                 transactional.updateOnError(entry.getRecordId(), clock.getUTCNow().toDate(), entry.getErrorCount(), config.getTableName());
-                transientInflightQRowIdCache.addRowId(entry.getRecordId());
+                // 再次进入缓存,因为事件已经发布成功，处理失败后应该是进入inflightEvents 而不是 transientInflightQRowIdCache，
+                // 如果进入到 transientInflightQRowIdCache 就会变成 dead event 没人处理，因为没有触发事务提交事件 transientInflightQRowIdCache 中的缓存不会被移到inflightEvents中
+                //transientInflightQRowIdCache.addRowId(entry.getRecordId());
+                inflightEvents.add(entry.getRecordId());
                 return null;
             }
         });
@@ -225,7 +228,7 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
     }
 
     /**
-     * 将threadlocal 中缓存的event转移到 inflightEvents
+     * 将 threadlocal 中缓存的event转移到 inflightEvents
      * @param event
      */
     @AllowConcurrentEvents
@@ -236,14 +239,14 @@ public class DBBackedQueueWithInflightQueue<T extends EventEntryModelDao> extend
             return;
         }
 
-        // This is a ROLLBACK, clear the threadLocal and return
+        // This is a ROLLBACK, clear the threadLocal and return，Case 1、事务回滚需要重置缓存
         if (event.getType() == DatabaseTransactionEventType.ROLLBACK) {
             transientInflightQRowIdCache.reset();
             return;
         }
 
         try {
-            // Add entry in the inflightQ and clear threadlocal
+            // Add entry in the inflightQ and clear threadlocal Case 2、将缓存中的ID移到阻塞队列中
             final Iterator<Long> entries = transientInflightQRowIdCache.iterator();
             while (entries.hasNext()) {
                 final Long entry = entries.next();

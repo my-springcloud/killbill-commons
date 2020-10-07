@@ -72,12 +72,21 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.eventbus.EventBusThatThrowsException;
 
+/**
+ * 职责：
+ * 1、注册事件监听器
+ * 2、发布事件到数据库队列中（post()）
+ * 3、从数据库中获取事件派发给订阅端 (dispatch)
+ * 4、异常处理
+ * 5、事件挖掘
+ * 6、数据库队列管理
+ */
 public class DefaultPersistentBus extends DefaultQueueLifecycle implements PersistentBus {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultPersistentBus.class);
 
     private final DBI dbi;
-    // 委托给其它实现
+    // 事件总线
     private final EventBusThatThrowsException eventBusDelegate;
     // 基于数据库的队列
     private final DBBackedQueue<BusEventModelDao> dao;
@@ -95,7 +104,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
     private final AtomicBoolean isInitialized;
     private final AtomicBoolean isStarted;
     private final String dbBackedQId;
-
+    // 从数据库中获取到event后会调用busCallableCallback#dispatch()方法来派发消息给订阅端
     private final BusCallableCallback busCallableCallback;
 
     private static final class EventBusDelegate extends EventBusThatThrowsException {
@@ -132,9 +141,11 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         this.eventBusDelegate = new EventBusDelegate("Killbill EventBus");
         this.isInitialized = new AtomicBoolean(false);
         this.isStarted = new AtomicBoolean(false);
+        // 挖掘机
         this.reaper = new BusReaper(this.dao, config, clock);
-
+        // 从数据库获取到事件后的派发逻辑
         this.busCallableCallback = new BusCallableCallback(this);
+        // 派发器，最终委派给busCallableCallback，而busCallableCallback又会调用 dispatchBusEventWithMetrics
         this.dispatcher = new Dispatcher<>(1, config, 10, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(config.getEventQueueCapacity()), busThreadFactory, new BlockingRejectionExecutionHandler(),
                                            clock, busCallableCallback, this);
 
@@ -176,6 +187,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         }
 
         if (isStarted.compareAndSet(false, true)) {
+            // 和“当前节点”相关的持久化模式才会启用挖掘机
             if (config.getPersistentQueueMode() == PersistentQueueMode.STICKY_POLLING || config.getPersistentQueueMode() == PersistentQueueMode.STICKY_EVENTS) {
                 // 启用挖掘机
                 reaper.start();
@@ -197,9 +209,10 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
             dao.close();
         }
     }
-
+    // 从数据库获取事件，并派发给订阅端的逻辑
     @Override
     public DispatchResultMetrics doDispatchEvents() {
+        // Step 1、 获取数据库事件
         final ReadyEntriesWithMetrics<BusEventModelDao> eventsWithMetrics = dao.getReadyEntries();
         final List<BusEventModelDao> events = eventsWithMetrics.getEntries();
         if (events.isEmpty()) {
@@ -209,17 +222,26 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
 
         long ini = System.nanoTime();
         for (final BusEventModelDao cur : events) {
-            // 派发事件
+            // Step 2、 派发事件给订阅端
             dispatcher.dispatch(cur);
         }
         return new DispatchResultMetrics(events.size(), (System.nanoTime() - ini) + eventsWithMetrics.getTime());
     }
 
+    /**
+     * 将事件移到历史表中
+     * @param completed
+     */
     @Override
     public void doProcessCompletedEvents(final Iterable<? extends EventEntryModelDao> completed) {
         busCallableCallback.moveCompletedOrFailedEvents((Iterable<BusEventModelDao>) completed);
     }
 
+    /**
+     * 1、更新error_count
+     * 2、将record_id再次添加到本地线程缓存
+     * @param retried
+     */
     @Override
     public void doProcessRetriedEvents(final Iterable<? extends EventEntryModelDao> retried) {
         Iterator<? extends EventEntryModelDao> it = retried.iterator();
@@ -258,6 +280,11 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
         }
     }
 
+    /**
+     * 发布消息到队列
+     * @param event to be posted
+     * @throws EventBusException
+     */
     @Override
     public void post(final BusEvent event) throws EventBusException {
         try {
@@ -404,7 +431,7 @@ public class DefaultPersistentBus extends DefaultQueueLifecycle implements Persi
     }
 
     /**
-     * 真正的事件派发逻辑
+     * 委派给guava eventBus
      * @param event
      * @throws com.google.common.eventbus.EventBusException
      */

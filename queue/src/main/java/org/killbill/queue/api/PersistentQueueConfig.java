@@ -23,6 +23,7 @@ import org.skife.config.TimeSpan;
 public interface PersistentQueueConfig {
 
     // We support 3 different modes to the queue
+    // STICKY 表示和当前节点相关的事件
     enum PersistentQueueMode {
         // Entries written from a given node (server) will also be dispatched to that same node; the code will poll for new entries 轮询数据库
         STICKY_POLLING,

@@ -35,16 +35,17 @@ public abstract class DefaultReaper implements Reaper {
     static final long ONE_MINUTES_IN_MSEC = 60000;
     static final long FIVE_MINUTES_IN_MSEC = 5 * ONE_MINUTES_IN_MSEC;
 
+    // 数据挖掘逻辑
     private final DBBackedQueue<?> dao;
     private final PersistentQueueConfig config;
     private final Clock clock;
     private final AtomicBoolean isStarted;
     private final String threadScheduledExecutorName;
-
+    // 计划
     private ScheduledFuture<?> reapEntriesHandle;
 
     private static final Logger log = LoggerFactory.getLogger(DefaultReaper.class);
-    // 定时执行器服务
+    // 服务
     private ScheduledExecutorService scheduler;
 
     public DefaultReaper(final DBBackedQueue<?> dao, final PersistentQueueConfig config, final Clock clock, final String threadScheduledExecutorName) {
@@ -67,6 +68,7 @@ public abstract class DefaultReaper implements Reaper {
         log.info("{}: Starting... reapThresholdMillis={}, schedulePeriodMillis={}",
                  threadScheduledExecutorName, reapThresholdMillis, schedulePeriodMillis);
 
+        // 挖掘消息执行器
         final Runnable reapEntries = new Runnable() {
             @Override
             public void run() {
@@ -79,6 +81,7 @@ public abstract class DefaultReaper implements Reaper {
         };
 
         scheduler = Executors.newSingleThreadScheduledExecutor(threadScheduledExecutorName);
+        // 每隔多久执行一次的定时任务
         reapEntriesHandle = scheduler.scheduleWithFixedDelay(reapEntries, schedulePeriodMillis, schedulePeriodMillis, TimeUnit.MILLISECONDS);
     }
 

@@ -23,7 +23,7 @@ import org.killbill.queue.api.QueueEvent;
 
 /**
  * The BusEventWithMetadata return to the user. It encapsulates the de-serialized version of the json event on disk.
- *
+ * 事件元数据 + 事件
  * @param <T> The type of event serialized on disk
  */
 public class BusEventWithMetadata<T extends QueueEvent> {
@@ -33,6 +33,7 @@ public class BusEventWithMetadata<T extends QueueEvent> {
     private final DateTime createdDate;
     private final Long searchKey1;
     private final Long searchKey2;
+    // 事件
     private final T event;
 
     public BusEventWithMetadata(final Long recordId, final UUID userToken, final DateTime createdDate, final Long searchKey1, final Long searchKey2, final T event) {

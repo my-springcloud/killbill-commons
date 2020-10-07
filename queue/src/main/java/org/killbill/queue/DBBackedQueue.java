@@ -307,7 +307,7 @@ public abstract class DBBackedQueue<T extends EventEntryModelDao> {
             public Void inTransaction(final QueueSqlDao<T> transactional, final TransactionStatus status) throws Exception {
                 final DateTime now = clock.getUTCNow();
                 final String owner = CreatorName.get();
-                // 获取落后没有处理的event
+                // 获取落后没有处理的event,包括本机和其他机器
                 /*
                  *     select
                  *       <allTableFields()>
@@ -340,9 +340,10 @@ public abstract class DBBackedQueue<T extends EventEntryModelDao> {
                     final boolean entryCreatedByThisNodeAndNeverProcessed = owner.equals(entryLeftBehind.getCreatingOwner()) && entryLeftBehind.getProcessingOwner() == null;
                     if (entryIsBeingProcessedByThisNode) {
                         // See https://github.com/killbill/killbill-commons/issues/47
-                        //
+                        // 归当前节点处理的事件
                         stuckEntries.add(entryLeftBehind);
                     } else if (entryCreatedByThisNodeAndNeverProcessed) {
+                        // 是当前节点创建，但是还没来得及处理的事件
                         lateEntries.addAll(entriesLeftBehind);
                     } else {
                         /* 既不是当前节点创建的，也不归当前节点处理的event将会被改成REAPED 状态并存到历史表中，

@@ -24,6 +24,9 @@ import org.joda.time.DateTime;
 import org.killbill.bus.dao.BusEventModelDao;
 import org.killbill.queue.api.PersistentQueueEntryLifecycleState;
 
+/**
+ * 数据对象
+ */
 public class NotificationEventModelDao extends BusEventModelDao {
 
     private UUID futureUserToken;

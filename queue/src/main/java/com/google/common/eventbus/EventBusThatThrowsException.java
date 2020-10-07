@@ -53,6 +53,11 @@ public class EventBusThatThrowsException extends EventBus {
         this.exceptionHandler = getExceptionHandler();
     }
 
+    /**
+     * 将异常封装成 EventBusException 并抛出
+     * @param event
+     * @throws EventBusException
+     */
     public void postWithException(final Object event) throws EventBusException {
         final Iterator<Subscriber> eventSubscribers = subscribers.getSubscribers(event);
         if (eventSubscribers.hasNext()) {

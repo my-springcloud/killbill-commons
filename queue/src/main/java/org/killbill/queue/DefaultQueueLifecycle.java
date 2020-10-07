@@ -46,16 +46,16 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
 
     private static final long MAX_SLEEP_TIME_MS = 100;
 
-    // Max size of the batch we allow
+    // Max size of the batch we allow，一批次最多可以处理的事件数量
     private static final int MAX_COMPLETED_ENTRIES = 15;
 
 
     protected final String svcQName;
     protected final ObjectMapper objectMapper;
     protected final PersistentQueueConfig config;
-    // 已完成或错误的实体
+    // 已完成或错误的实体，定时器会处理
     private final LinkedBlockingQueue<EventEntryModelDao> completedOrFailedEvents;
-    // 需要重试的实体
+    // 需要重试的实体，定时器会处理
     private final LinkedBlockingQueue<EventEntryModelDao> retriedEvents;
     // Time to dispatch entries to Dispatcher threads
     private final Timer dispatchTime;
@@ -105,9 +105,8 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         log.info("{}: Starting...", svcQName);
 
         isProcessingEvents = true;
-
+        // 初始化线程池
         for (int i = 0; i < config.geNbLifecycleDispatchThreads(); i++) {
-            // 死循环执行事件派发
             executor.execute(new DispatcherRunnable());
         }
 
@@ -144,7 +143,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
     }
 
     /**
-     * 将事件派发给处理器
+     * 将数据库中取出的事件派发给监听器
      * @return
      */
     public abstract DispatchResultMetrics doDispatchEvents();
@@ -176,6 +175,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         }
     }
 
+    // 定时器处理已完成、失败、重试事件
     private final class CompletionRunnable implements Runnable {
 
         @Override
@@ -189,7 +189,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
 
                 while (true) {
 
-                    if (!isProcessingEvents) {
+                    if (!isProcessingEvents) { // 队列要start后才能运行派发逻辑
                         break;
                     }
 
@@ -199,9 +199,11 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
                             long ini = System.nanoTime();
                             long pollSleepTime = 0;
                             final List<EventEntryModelDao> completed = new ArrayList<>(MAX_COMPLETED_ENTRIES);
+                            // Step 1、获取本批次处理的数据
                             completedOrFailedEvents.drainTo(completed, MAX_COMPLETED_ENTRIES);
                             if (completed.isEmpty()) {
                                 long beforePollTime = System.nanoTime();
+                                // 延时等待获取数据
                                 final EventEntryModelDao entry = completedOrFailedEvents.poll(MAX_SLEEP_TIME_MS, TimeUnit.MILLISECONDS);
                                 pollSleepTime = System.nanoTime() - beforePollTime;
                                 if (entry != null) {
@@ -210,11 +212,13 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
                             }
 
                             if (!completed.isEmpty()) {
+                                // Step 2、处理已完成事件（移到历史表中）
                                 doProcessCompletedEvents(completed);
                             }
-
+                            // Step 3、处理重试事件（更新 error_count,将事件record_id重现放入本地缓存中）
                             int retried = drainRetriedEvents();
                             final int completeOrRetried = completed.size() + retried;
+                            // 统计数据
                             if (completeOrRetried > 0) {
                                 completeEntries.update(completeOrRetried);
                                 completeTime.update((System.nanoTime() - ini) - pollSleepTime, TimeUnit.NANOSECONDS);
@@ -242,6 +246,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         }
     }
 
+    // 定时器读取数据库事件，将其派发到订阅端
     private final class DispatcherRunnable implements Runnable {
 
         @Override
@@ -252,10 +257,10 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
                                        svcQName,
                                        Thread.currentThread().getName(),
                                        Thread.currentThread().getId());
-                // 死循环，一直派发事件
+                // 死循环，执行事件派发逻辑
                 while (true) {
 
-                    if (!isProcessingEvents) {
+                    if (!isProcessingEvents) { // 队列要 start后才会执行事件派发逻辑
                         break;
                     }
 
@@ -263,6 +268,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
                         @Override
                         public void callback() throws InterruptedException {
                             final long beforeLoop = System.nanoTime();
+                            // 最终调用的是doDispatchEvents()
                             dispatchEvents();
                             final long afterLoop = System.nanoTime();
 
@@ -283,6 +289,7 @@ public abstract class DefaultQueueLifecycle implements QueueLifecycle {
         private void dispatchEvents() {
 
             long ini = System.nanoTime();
+            // 委派给 doDispatchEvents()
             final DispatchResultMetrics metricsResult = doDispatchEvents();
             dispatchedEntries.update(metricsResult.getNbEntries());
             if (isStickyEvent) {

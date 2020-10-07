@@ -55,7 +55,7 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 
 /**
- * 队列派发器，将数据库中的消息派发给queue，并调用订阅端进行处理
+ * 消息派发管理服务
  */
 public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
 
@@ -86,7 +86,7 @@ public class NotificationQueueDispatcher extends DefaultQueueLifecycle {
     private volatile int activeQueues;
     // 通知回调
     private final NotificationCallableCallback notificationCallableCallback;
-    // 挖掘机
+    // 挖掘机（轮询才会启动挖掘）
     private final NotificationReaper reaper;
 
     // Package visibility on purpose

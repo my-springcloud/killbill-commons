@@ -29,6 +29,10 @@ import org.skife.jdbi.v2.sqlobject.SqlQuery;
 import org.skife.jdbi.v2.sqlobject.SqlUpdate;
 import org.skife.jdbi.v2.sqlobject.customizers.Define;
 
+/**
+ *
+ * 数据库行记录入口
+ */
 @KillBillSqlDaoStringTemplate
 public interface NotificationSqlDao extends QueueSqlDao<NotificationEventModelDao> {
 

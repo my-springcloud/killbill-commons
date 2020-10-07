@@ -33,6 +33,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.UUID;
 import java.util.concurrent.*;
 
+/**
+ * 职责：
+ * 1、将事件派发给订阅端
+ * 2、异常处理（重试）
+ * @param <E>
+ * @param <M>
+ */
 public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
 
     private static final Logger log = LoggerFactory.getLogger(Dispatcher.class);
@@ -60,7 +67,6 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
     private final Clock clock;
 
     // Deferred in start sequence to allow for restart, which is not possible after the shutdown (mostly for test purpose)
-    // 用于执行任务
     private ExecutorService handlerExecutor;
 
     public Dispatcher(final int corePoolSize,
@@ -104,7 +110,7 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
     }
 
     /**
-     * 派发逻辑，创建一个包含回调的被派发实体
+     * 派发逻辑，将任务打包放入线程池
      *
      * @param modelDao
      */
@@ -123,7 +129,7 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
     }
 
     /**
-     * 队列消息处理器
+     * 命令者模式，用于将队列中的消息打包成命令放入 线程池中运行
      * @param <E>
      * @param <M>
      */
@@ -149,19 +155,24 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
             this.maxFailureRetries = maxFailureRetries;
         }
 
+        /**
+         * 消息执行的业务逻辑
+         * @return
+         * @throws Exception
+         */
         @Override
         public E call() throws Exception {
             try {
                 final UUID userToken = entry.getUserToken();
                 MDC.put(MDC_KB_USER_TOKEN, userToken != null ? userToken.toString() : null);
-
+                // 从数据库获取到的实体
                 log.debug("Starting processing entry {}", entry);
                 final E event = callback.deserialize(entry);
                 if (event != null) {
                     Throwable lastException = null;
                     long errorCount = entry.getErrorCount();
                     try {
-                        // 重新派发
+                        // 调用订阅端处理事件，callback 是 CallableCallback
                         callback.dispatch(event, entry);
                     } catch (final Exception e) {
                         if (e.getCause() != null && e.getCause() instanceof InvocationTargetException) {
@@ -173,15 +184,17 @@ public class Dispatcher<E extends QueueEvent, M extends EventEntryModelDao> {
                         }
                         errorCount++;
                     } finally {
-                        // 如果 parentLifeCycle 存在，则构建新的数据库实体 调用 parentLifeCycle 的业务逻辑
                         if (parentLifeCycle != null) {
+                            /*
+                            修改事件状态
+                             */
                             if (lastException == null) {
                                 // 成功
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.PROCESSED, entry.getErrorCount());
                                 parentLifeCycle.dispatchCompletedOrFailedEvents(newEntry);
 
                                 log.debug("Done handling notification {}, key = {}", entry.getRecordId(), entry.getEventJson());
-                            } else if (lastException instanceof RetryableInternalException) {
+                            } else if (lastException instanceof RetryableInternalException) { // 在重试的时候抛出了内部异常，再去重试没有什么意义了
                                 // 失败重试
                                 final M newEntry = callback.buildEntry(entry, clock.getUTCNow(), PersistentQueueEntryLifecycleState.FAILED, entry.getErrorCount());
                                 parentLifeCycle.dispatchCompletedOrFailedEvents(newEntry);
